@@ -39,6 +39,8 @@
    Avoids the open-small-then-jump when styles.css arrives later. */
 html {
   font-size: 16px;
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {
@@ -59,7 +61,11 @@ body {
   background: var(--barbazza-black, #ffffff);
   color: var(--barbazza-cream, #2a2a2a);
   font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  overscroll-behavior-y: none;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y pinch-zoom;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -75,7 +81,9 @@ body {
   background: var(--barbazza-black, #ffffff);
   padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   font-size: 16px;
 }
 
@@ -559,6 +567,9 @@ textarea:focus {
   min-height: 100svh;
   background: var(--barbazza-black, #fff);
   padding-bottom: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  height: auto;
 }
 
 .app-header {
@@ -610,6 +621,9 @@ textarea:focus {
   /* Phone = standalone app chrome */
   .app-shell {
     padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    overflow: visible;
+    height: auto;
+    max-height: none;
   }
 
   .main-header {
@@ -652,6 +666,9 @@ textarea:focus {
   .app-content {
     padding: 12px 12px 8px;
     max-width: none;
+    overflow: visible;
+    height: auto;
+    max-height: none;
   }
 
   .mobile-bottom-nav {

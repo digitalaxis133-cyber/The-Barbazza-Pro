@@ -256,8 +256,10 @@
 
 html {
   font-size: 16px; /* Mobile-first base font size */
-  /* Prefer clip over hidden so mouse-wheel page scroll is not broken in Chrome */
+  /* Prefer clip over hidden so mouse-wheel page scroll is not broken in Chrome.
+     Always pair with overflow-y so some mobile WebViews do not lock vertical scroll. */
   overflow-x: clip;
+  overflow-y: auto;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   scroll-behavior: smooth;
@@ -271,6 +273,12 @@ body {
   font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
+  position: relative;
+  min-height: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -1167,8 +1175,9 @@ input:disabled {
     align-items: flex-start !important;
     justify-content: center !important;
     padding: max(1rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom)) !important;
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
     box-sizing: border-box !important;
   }
   
@@ -1308,9 +1317,25 @@ input:disabled {
     font-size: 16px !important;
   }
   
-  /* --- HIDE OVERFLOW --- */
+  /* Keep page scrollable on stubborn mobile browsers (iOS/WebView).
+     Never use overflow-x:hidden alone on body — it can freeze vertical scroll. */
+  html,
   body {
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .app-shell,
+  .app-content,
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 }
 
