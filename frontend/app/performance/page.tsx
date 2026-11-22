@@ -1,19 +1,55 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Kpi, Panel, Shell } from "@/components/Shell";
 import { api, money } from "@/lib/api";
 
 type Ranking = { rank: number; barberId: number; code: string; name: string; customers: number; earned: number; share: number };
+type MonthlyPoint = {
+  month: string;
+  label: string;
+  income: number;
+  customers: number;
+  expenses: number;
+  profit: number;
+};
 type Perf = {
   month: string;
   salon: { income: number; customers: number; expenses: number; profit: number; days: number; avgDaily: number };
   ranking: Ranking[];
   trend: { date: string; total: number }[];
+  monthlyTrend: MonthlyPoint[];
 };
-type BarberPerf = { name: string; customers: number; earned: number; avg: number; days: number; trend: { date: string; total: number }[] };
+type BarberPerf = {
+  name: string;
+  customers: number;
+  earned: number;
+  avg: number;
+  days: number;
+  trend: { date: string; total: number }[];
+  monthlyTrend: { month: string; label: string; earned: number; customers: number }[];
+};
 type Barber = { id: number; code: string; name: string };
+
+function shortMoney(value: number) {
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return String(Math.round(value));
+}
 
 export default function PerformancePage() {
   const months = useMemo(() => {
@@ -84,8 +120,38 @@ export default function PerformancePage() {
             <Kpi label="Days Worked" value={String(data.salon.days)} />
             <Kpi label="Avg Daily Income" value={money(data.salon.avgDaily)} />
           </div>
-          <h4 style={{ marginTop: "var(--space-6)" }}>Income Trend - Selected Month</h4>
+
+          <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
+          <p style={{ fontSize: "0.85rem", color: "var(--barbazza-cream)", marginBottom: "var(--space-3)" }}>
+            Last 12 months ending in the selected month — income, expenses, and profit.
+          </p>
           <div style={{ height: 320 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data.monthlyTrend || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(10,10,10,0.08)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11 }} width={44} />
+                <Tooltip
+                  formatter={(value, name) => [money(Number(value)), String(name)]}
+                  labelFormatter={(label) => String(label)}
+                />
+                <Legend />
+                <Bar dataKey="income" name="Income" fill="#0a0a0a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="expenses" name="Expenses" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  name="Profit"
+                  stroke="#2d5a3f"
+                  strokeWidth={2.5}
+                  dot={{ r: 3 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          <h4 style={{ marginTop: "var(--space-6)" }}>Income Trend - Selected Month</h4>
+          <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.trend}>
                 <XAxis dataKey="date" hide />
@@ -143,7 +209,31 @@ export default function PerformancePage() {
                 <Kpi label="Avg service" value={money(barber.avg)} />
                 <Kpi label="Days worked" value={String(barber.days)} />
               </div>
-              <div style={{ height: 280, marginTop: "var(--space-4)" }}>
+
+              <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
+              <p style={{ fontSize: "0.85rem", color: "var(--barbazza-cream)", marginBottom: "var(--space-3)" }}>
+                Last 12 months of earnings for {barber.name}.
+              </p>
+              <div style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={barber.monthlyTrend || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="rgba(10,10,10,0.08)" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                    <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11 }} width={44} />
+                    <Tooltip
+                      formatter={(value, name) =>
+                        name === "Customers" ? [Number(value), "Customers"] : [money(Number(value)), "Earned"]
+                      }
+                    />
+                    <Legend />
+                    <Bar dataKey="earned" name="Earned" fill="#0a0a0a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Line type="monotone" dataKey="customers" name="Customers" stroke="#6a6a6a" strokeWidth={2} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              <h4 style={{ marginTop: "var(--space-6)" }}>Daily trend - Selected Month</h4>
+              <div style={{ height: 240, marginTop: "var(--space-3)" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barber.trend}>
                     <XAxis dataKey="date" hide />

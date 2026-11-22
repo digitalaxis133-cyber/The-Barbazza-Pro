@@ -60,6 +60,13 @@ function monthBounds(month: string) {
   return { start, end: endDate.toISOString().slice(0, 10) };
 }
 
+/** First day of the month that is `monthsBack` months before `month` (YYYY-MM). */
+function monthsBackStart(month: string, monthsBack: number) {
+  const [y, m] = month.slice(0, 7).split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 - monthsBack, 1));
+  return d.toISOString().slice(0, 10);
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
@@ -224,15 +231,16 @@ app.get("/api/dashboard/overview", requireAuth, allow("admin"), async (_req, res
 app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), async (req, res) => {
   const month = String(req.query.month || new Date().toISOString().slice(0, 7));
   const { start, end } = monthBounds(month);
+  const historyStart = monthsBackStart(month, 11);
   try {
-    const cacheKey = `perf:${month}`;
+    const cacheKey = `perf:${month}:v2`;
     const cached = cacheGet<unknown>(cacheKey);
     if (cached) {
       fastGetHeaders(res, 15);
       res.json(cached);
       return;
     }
-    const [salon, ranking, trend] = await Promise.all([
+    const [salon, ranking, trend, monthly] = await Promise.all([
       query<{ income: string; customers: string; expenses: string; days: string }>(
         `SELECT
            (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date BETWEEN $1 AND $2) AS income,
@@ -266,6 +274,37 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
          GROUP BY transaction_date ORDER BY transaction_date`,
         [start, end]
       ),
+      query<{ month: string; label: string; income: string; customers: string; expenses: string }>(
+        `WITH months AS (
+           SELECT date_trunc('month', d)::date AS month_start
+           FROM generate_series($1::date, $2::date, INTERVAL '1 month') AS d
+         ),
+         income AS (
+           SELECT date_trunc('month', transaction_date)::date AS month_start,
+                  COALESCE(SUM(amount),0) AS income,
+                  COUNT(*)::int AS customers
+           FROM transactions
+           WHERE transaction_date BETWEEN $1 AND $2
+           GROUP BY 1
+         ),
+         spend AS (
+           SELECT date_trunc('month', expense_date)::date AS month_start,
+                  COALESCE(SUM(amount),0) AS expenses
+           FROM expenses
+           WHERE expense_date BETWEEN $1 AND $2
+           GROUP BY 1
+         )
+         SELECT TO_CHAR(m.month_start, 'YYYY-MM') AS month,
+                TO_CHAR(m.month_start, 'Mon YY') AS label,
+                COALESCE(i.income, 0) AS income,
+                COALESCE(i.customers, 0) AS customers,
+                COALESCE(s.expenses, 0) AS expenses
+         FROM months m
+         LEFT JOIN income i ON i.month_start = m.month_start
+         LEFT JOIN spend s ON s.month_start = m.month_start
+         ORDER BY m.month_start`,
+        [historyStart, end]
+      ),
     ]);
     const income = num(salon[0]?.income);
     const expenses = num(salon[0]?.expenses);
@@ -290,6 +329,18 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
         share: income > 0 ? Math.round((num(row.earned) / income) * 1000) / 10 : 0,
       })),
       trend: trend.map((row) => ({ date: isoDate(row.day), total: num(row.total) })),
+      monthlyTrend: monthly.map((row) => {
+        const monthIncome = num(row.income);
+        const monthExpenses = num(row.expenses);
+        return {
+          month: row.month,
+          label: row.label.trim(),
+          income: monthIncome,
+          customers: num(row.customers),
+          expenses: monthExpenses,
+          profit: monthIncome - monthExpenses,
+        };
+      }),
     };
     cacheSet(cacheKey, payload, 20_000);
     fastGetHeaders(res, 15);
@@ -336,6 +387,7 @@ app.get("/api/dashboard/barber", requireAuth, allow("admin"), async (req, res) =
     return;
   }
   const { start, end } = monthBounds(month);
+  const historyStart = monthsBackStart(month, 11);
   try {
     const rows = await query<{
       full_name: string | null;
@@ -358,13 +410,37 @@ app.get("/api/dashboard/barber", requireAuth, allow("admin"), async (req, res) =
        GROUP BY b.barber_id, b.barber_code, u.full_name`,
       [start, end, barberId]
     );
-    const trend = await query<{ day: string; total: string }>(
-      `SELECT transaction_date AS day, COALESCE(SUM(amount),0) AS total
-       FROM transactions
-       WHERE barber_id = $1 AND transaction_date BETWEEN $2 AND $3
-       GROUP BY transaction_date ORDER BY transaction_date`,
-      [barberId, start, end]
-    );
+    const [trend, monthly] = await Promise.all([
+      query<{ day: string; total: string }>(
+        `SELECT transaction_date AS day, COALESCE(SUM(amount),0) AS total
+         FROM transactions
+         WHERE barber_id = $1 AND transaction_date BETWEEN $2 AND $3
+         GROUP BY transaction_date ORDER BY transaction_date`,
+        [barberId, start, end]
+      ),
+      query<{ month: string; label: string; earned: string; customers: string }>(
+        `WITH months AS (
+           SELECT date_trunc('month', d)::date AS month_start
+           FROM generate_series($1::date, $2::date, INTERVAL '1 month') AS d
+         ),
+         earned AS (
+           SELECT date_trunc('month', transaction_date)::date AS month_start,
+                  COALESCE(SUM(amount),0) AS earned,
+                  COUNT(*)::int AS customers
+           FROM transactions
+           WHERE barber_id = $3 AND transaction_date BETWEEN $1 AND $2
+           GROUP BY 1
+         )
+         SELECT TO_CHAR(m.month_start, 'YYYY-MM') AS month,
+                TO_CHAR(m.month_start, 'Mon YY') AS label,
+                COALESCE(e.earned, 0) AS earned,
+                COALESCE(e.customers, 0) AS customers
+         FROM months m
+         LEFT JOIN earned e ON e.month_start = m.month_start
+         ORDER BY m.month_start`,
+        [historyStart, end, barberId]
+      ),
+    ]);
     const row = rows[0];
     res.json({
       name: row?.full_name || row?.barber_code || "Barber",
@@ -374,6 +450,12 @@ app.get("/api/dashboard/barber", requireAuth, allow("admin"), async (req, res) =
       avg: num(row?.avg),
       days: num(row?.days),
       trend: trend.map((item) => ({ date: isoDate(item.day), total: num(item.total) })),
+      monthlyTrend: monthly.map((item) => ({
+        month: item.month,
+        label: item.label.trim(),
+        earned: num(item.earned),
+        customers: num(item.customers),
+      })),
     });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load barber" });
