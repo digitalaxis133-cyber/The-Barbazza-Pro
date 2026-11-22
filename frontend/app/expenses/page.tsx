@@ -3,18 +3,29 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ActionModal } from "@/components/ActionModal";
 import { BusyButton } from "@/components/BusyButton";
-import { Panel, Shell, useSession } from "@/components/Shell";
+import { Kpi, Panel, Shell, useSession } from "@/components/Shell";
 import { api, money } from "@/lib/api";
 import { shopBusinessDate } from "@/lib/time";
 
 type Option = { id: number; name: string; code?: string };
 type ExpenseRow = { category: string; description: string; amount: number; time: string; addedBy: string };
+type DaySnap = {
+  income: number;
+  customers: number;
+  expenses: number;
+  profit: number;
+  barberCommission: number;
+  operatingExpenses: number;
+  salaryExpenses: number;
+  shopTakeaway: number;
+  expenseRows: ExpenseRow[];
+};
 
 export default function ExpensesPage() {
   const user = useSession();
   const [categories, setCategories] = useState<Option[]>([]);
   const [barbers, setBarbers] = useState<Option[]>([]);
-  const [rows, setRows] = useState<ExpenseRow[]>([]);
+  const [day, setDay] = useState<DaySnap | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -30,8 +41,8 @@ export default function ExpensesPage() {
   });
 
   async function load() {
-    const day = await api<{ expenseRows: ExpenseRow[] }>(`/api/day?date=${date}`);
-    setRows(day.expenseRows);
+    const snap = await api<DaySnap>(`/api/day?date=${date}`);
+    setDay(snap);
   }
 
   useEffect(() => {
@@ -91,9 +102,34 @@ export default function ExpensesPage() {
     }
   }
 
+  const rows = day?.expenseRows || [];
+  const barber40 = day?.barberCommission ?? 0;
+  const opsExpenses = day?.operatingExpenses ?? day?.expenses ?? 0;
+  const income = day?.income ?? 0;
+  const takeaway = day?.shopTakeaway ?? income - barber40 - opsExpenses;
+
   return (
     <Shell loading={loading && !error}>
       {error && !formOpen ? <div className="alert alert-danger">{error}</div> : null}
+
+      <Panel title="Day money snapshot" className="manager-card">
+        <p style={{ marginBottom: "var(--space-4)", color: "var(--barbazza-cream)", fontSize: "0.9rem" }}>
+          Barber 40% is the commission owed from today&apos;s services. Shop take-away is income minus Barber 40% and
+          operating expenses — staff salary categories are excluded.
+        </p>
+        <div className="daily-summary">
+          <Kpi label="Income" value={money(income)} />
+          <Kpi label="Barber 40%" value={money(barber40)} />
+          <Kpi label="Operating expenses" value={money(opsExpenses)} />
+          <Kpi label="Shop take-away" value={money(takeaway)} />
+        </div>
+        {(day?.salaryExpenses || 0) > 0 ? (
+          <p style={{ marginTop: "var(--space-3)", fontSize: "0.8rem", color: "var(--barbazza-stone)" }}>
+            Salary / payroll recorded today: {money(day!.salaryExpenses)} (excluded from take-away).
+          </p>
+        ) : null}
+      </Panel>
+
       <Panel
         title="Today's Expenses"
         className="manager-card"
@@ -123,9 +159,16 @@ export default function ExpensesPage() {
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td>Barber 40%</td>
+              <td>Barber commission on today&apos;s services (auto)</td>
+              <td>{money(barber40)}</td>
+              <td>—</td>
+              <td>System</td>
+            </tr>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5}>No expenses for this date.</td>
+                <td colSpan={5}>No recorded expenses for this date.</td>
               </tr>
             ) : (
               rows.map((row, i) => (

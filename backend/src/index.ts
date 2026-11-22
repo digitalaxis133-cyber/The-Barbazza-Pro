@@ -463,15 +463,16 @@ app.get("/api/dashboard/barber", requireAuth, allow("admin"), async (req, res) =
 });
 
 async function daySnapshot(date: string) {
-  const cached = cacheGet<ReturnType<typeof Object>>(`day:${date}`);
+  const cacheKey = `day:${date}:v2`;
+  const cached = cacheGet<ReturnType<typeof Object>>(cacheKey);
   if (cached) return cached as Awaited<ReturnType<typeof daySnapshotUncached>>;
   const result = await daySnapshotUncached(date);
-  cacheSet(`day:${date}`, result, 8_000);
+  cacheSet(cacheKey, result, 8_000);
   return result;
 }
 
 async function daySnapshotUncached(date: string) {
-  const [summary, barbers, expenses] = await Promise.all([
+  const [summary, barbers, expenses, commissionRows, opsExpenseRows] = await Promise.all([
     query<{ income: string; customers: string; expenses: string }>(
       `SELECT
          (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date = $1) AS income,
@@ -512,15 +513,50 @@ async function daySnapshotUncached(date: string) {
        ORDER BY e.created_at DESC`,
       [date]
     ),
+    query<{ commission: string }>(
+      `SELECT COALESCE(SUM(
+           t.amount * (
+             CASE
+               WHEN b.commission_rate > 1 THEN b.commission_rate / 100.0
+               ELSE b.commission_rate
+             END
+           )
+         ), 0) AS commission
+       FROM transactions t
+       JOIN barbers b ON b.barber_id = t.barber_id
+       WHERE t.transaction_date = $1`,
+      [date]
+    ),
+    query<{ ops: string; salary: string }>(
+      `SELECT
+         COALESCE(SUM(e.amount) FILTER (
+           WHERE COALESCE(c.category_name, '') !~* 'salary|wage|payroll|staff pay'
+         ), 0) AS ops,
+         COALESCE(SUM(e.amount) FILTER (
+           WHERE COALESCE(c.category_name, '') ~* 'salary|wage|payroll|staff pay'
+         ), 0) AS salary
+       FROM expenses e
+       LEFT JOIN expense_categories c ON e.category_id = c.category_id
+       WHERE e.expense_date = $1`,
+      [date]
+    ),
   ]);
   const income = num(summary[0]?.income);
   const expenseTotal = num(summary[0]?.expenses);
+  const barberCommission = Math.round(num(commissionRows[0]?.commission));
+  const operatingExpenses = num(opsExpenseRows[0]?.ops);
+  const salaryExpenses = num(opsExpenseRows[0]?.salary);
+  const shopTakeaway = income - barberCommission - operatingExpenses;
   return {
     date,
     income,
     customers: num(summary[0]?.customers),
     expenses: expenseTotal,
     profit: income - expenseTotal,
+    barberCommission,
+    operatingExpenses,
+    salaryExpenses,
+    shopTakeaway,
     barbers: barbers.map((row) => ({
       code: row.barber_code,
       name: row.full_name || row.barber_code,
