@@ -233,14 +233,14 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
   const { start, end } = monthBounds(month);
   const historyStart = monthsBackStart(month, 11);
   try {
-    const cacheKey = `perf:${month}:v3`;
+    const cacheKey = `perf:${month}:v4`;
     const cached = cacheGet<unknown>(cacheKey);
     if (cached) {
       fastGetHeaders(res, 15);
       res.json(cached);
       return;
     }
-    const [salon, ranking, trend, monthly, closingRows] = await Promise.all([
+    const [salon, ranking, trend, monthly, closingRows, paidNetRows] = await Promise.all([
       query<{ income: string; customers: string; expenses: string; days: string }>(
         `SELECT
            (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date BETWEEN $1 AND $2) AS income,
@@ -280,7 +280,6 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
         income: string;
         customers: string;
         operating_expenses: string;
-        barber_salaries: string;
       }>(
         `WITH months AS (
            SELECT date_trunc('month', d)::date AS month_start
@@ -300,48 +299,47 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
            FROM expenses
            WHERE expense_date BETWEEN $1 AND $2
            GROUP BY 1
-         ),
-         computed_salaries AS (
-           SELECT date_trunc('month', t.transaction_date)::date AS month_start,
-                  COALESCE(SUM(
-                    t.amount * CASE
-                      WHEN b.commission_rate IS NULL THEN 0.40
-                      WHEN b.commission_rate > 0 AND b.commission_rate <= 1 THEN b.commission_rate
-                      ELSE b.commission_rate / 100.0
-                    END
-                  ), 0) AS barber_salaries
-           FROM transactions t
-           JOIN barbers b ON b.barber_id = t.barber_id
-           WHERE t.transaction_date BETWEEN $1 AND $2
-           GROUP BY 1
-         ),
-         paid_salaries AS (
-           SELECT make_date(ms.year, ms.month, 1) AS month_start,
-                  COALESCE(SUM(ms.commission_earned), 0) AS barber_salaries
-           FROM monthly_salaries ms
-           WHERE make_date(ms.year, ms.month, 1) BETWEEN $1 AND $2
-           GROUP BY 1
          )
          SELECT TO_CHAR(m.month_start, 'YYYY-MM') AS month,
                 TO_CHAR(m.month_start, 'Mon YY') AS label,
                 COALESCE(i.income, 0) AS income,
                 COALESCE(i.customers, 0) AS customers,
-                COALESCE(s.expenses, 0) AS operating_expenses,
-                COALESCE(p.barber_salaries, c.barber_salaries, 0) AS barber_salaries
+                COALESCE(s.expenses, 0) AS operating_expenses
          FROM months m
          LEFT JOIN income i ON i.month_start = m.month_start
          LEFT JOIN spend s ON s.month_start = m.month_start
-         LEFT JOIN computed_salaries c ON c.month_start = m.month_start
-         LEFT JOIN paid_salaries p ON p.month_start = m.month_start
          ORDER BY m.month_start`,
         [historyStart, end]
       ),
       closingSummary(month),
+      // Stored Payment Summary net salaries (after all deductions) when a month was closed
+      query<{ month: string; net_salaries: string }>(
+        `SELECT LPAD(year::text, 4, '0') || '-' || LPAD(month::text, 2, '0') AS month,
+                COALESCE(SUM(net_salary), 0) AS net_salaries
+         FROM monthly_salaries
+         WHERE make_date(year, month, 1) BETWEEN $1 AND $2
+         GROUP BY year, month`,
+        [historyStart, end]
+      ),
     ]);
+    const paidNetByMonth = new Map(paidNetRows.map((row) => [row.month, num(row.net_salaries)]));
+
+    // Fill open months with live Payment Summary net salaries (commission − deductions)
+    const openMonthKeys = monthly.map((row) => row.month).filter((key) => !paidNetByMonth.has(key));
+    const openClosings = await Promise.all(
+      openMonthKeys.map(async (key) => {
+        const rows = await closingSummary(key);
+        return [key, rows.reduce((sum, row) => sum + row.netSalary, 0)] as const;
+      })
+    );
+    const netSalaryByMonth = new Map<string, number>([...paidNetByMonth, ...openClosings]);
+
     const income = num(salon[0]?.income);
     const operatingExpenses = num(salon[0]?.expenses);
-    // Same commission total Monthly Closing uses (barber ~40% salaries)
-    const barberSalaries = closingRows.reduce((sum, row) => sum + row.commissionEarned, 0);
+    // Always Net Salary from Barbers Payment Summary (after recruitment + credit deductions)
+    const barberSalaries = paidNetByMonth.has(month)
+      ? (paidNetByMonth.get(month) as number)
+      : closingRows.reduce((sum, row) => sum + row.netSalary, 0);
     const expenses = operatingExpenses + barberSalaries;
     const days = num(salon[0]?.days);
     const payload = {
@@ -369,7 +367,7 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
       monthlyTrend: monthly.map((row) => {
         const monthIncome = num(row.income);
         const operating = num(row.operating_expenses);
-        const salaries = num(row.barber_salaries);
+        const salaries = netSalaryByMonth.get(row.month) ?? 0;
         const monthExpenses = operating + salaries;
         return {
           month: row.month,

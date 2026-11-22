@@ -127,20 +127,21 @@ export default function PerformancePage() {
             <Kpi label="Total Customers" value={String(data.salon.customers)} />
             <Kpi label="Total Income" value={money(data.salon.income)} />
             <Kpi label="Operating Expenses" value={money(data.salon.operatingExpenses ?? 0)} />
-            <Kpi label="Barber Salaries (~40%)" value={money(data.salon.barberSalaries ?? 0)} />
+            <Kpi label="Barber Net Salaries" value={money(data.salon.barberSalaries ?? 0)} />
             <Kpi label="Total Expenses" value={money(data.salon.expenses)} />
             <Kpi label="Shop Takeaway" value={money(data.salon.profit)} />
             <Kpi label="Days Worked" value={String(data.salon.days)} />
             <Kpi label="Avg Daily Income" value={money(data.salon.avgDaily)} />
           </div>
           <p style={{ marginTop: "var(--space-3)", fontSize: "0.85rem", color: "var(--barbazza-cream)" }}>
-            Total expenses always include barber commission salaries from monthly closing (typically 40%). Shop takeaway
-            is income after operating costs and those salaries.
+            Barber salaries always use <strong>Net Salary</strong> from Barbers Payment Summary (after recruitment and
+            credit deductions). Total expenses = operating costs + those net salaries. Shop takeaway is income after
+            that.
           </p>
 
           <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
           <p style={{ fontSize: "0.85rem", color: "var(--barbazza-cream)", marginBottom: "var(--space-3)" }}>
-            Last 12 months ending in the selected month — income, total expenses (ops + barber salaries), and shop
+            Last 12 months ending in the selected month — income, total expenses (ops + barber net salaries), and shop
             takeaway.
           </p>
           <div style={{ height: 320 }}>
@@ -155,7 +156,7 @@ export default function PerformancePage() {
                 />
                 <Legend />
                 <Bar dataKey="income" name="Income" fill="#0a0a0a" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="expenses" name="Expenses (ops + salaries)" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="expenses" name="Expenses (ops + net salaries)" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
                 <Line
                   type="monotone"
                   dataKey="profit"
