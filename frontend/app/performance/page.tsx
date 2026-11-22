@@ -24,12 +24,23 @@ type MonthlyPoint = {
   label: string;
   income: number;
   customers: number;
+  operatingExpenses: number;
+  barberSalaries: number;
   expenses: number;
   profit: number;
 };
 type Perf = {
   month: string;
-  salon: { income: number; customers: number; expenses: number; profit: number; days: number; avgDaily: number };
+  salon: {
+    income: number;
+    customers: number;
+    operatingExpenses: number;
+    barberSalaries: number;
+    expenses: number;
+    profit: number;
+    days: number;
+    avgDaily: number;
+  };
   ranking: Ranking[];
   trend: { date: string; total: number }[];
   monthlyTrend: MonthlyPoint[];
@@ -115,15 +126,22 @@ export default function PerformancePage() {
           <div className="daily-summary">
             <Kpi label="Total Customers" value={String(data.salon.customers)} />
             <Kpi label="Total Income" value={money(data.salon.income)} />
+            <Kpi label="Operating Expenses" value={money(data.salon.operatingExpenses ?? 0)} />
+            <Kpi label="Barber Salaries (~40%)" value={money(data.salon.barberSalaries ?? 0)} />
             <Kpi label="Total Expenses" value={money(data.salon.expenses)} />
-            <Kpi label="Net Profit" value={money(data.salon.profit)} />
+            <Kpi label="Shop Takeaway" value={money(data.salon.profit)} />
             <Kpi label="Days Worked" value={String(data.salon.days)} />
             <Kpi label="Avg Daily Income" value={money(data.salon.avgDaily)} />
           </div>
+          <p style={{ marginTop: "var(--space-3)", fontSize: "0.85rem", color: "var(--barbazza-cream)" }}>
+            Total expenses always include barber commission salaries from monthly closing (typically 40%). Shop takeaway
+            is income after operating costs and those salaries.
+          </p>
 
           <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
           <p style={{ fontSize: "0.85rem", color: "var(--barbazza-cream)", marginBottom: "var(--space-3)" }}>
-            Last 12 months ending in the selected month — income, expenses, and profit.
+            Last 12 months ending in the selected month — income, total expenses (ops + barber salaries), and shop
+            takeaway.
           </p>
           <div style={{ height: 320 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -137,11 +155,11 @@ export default function PerformancePage() {
                 />
                 <Legend />
                 <Bar dataKey="income" name="Income" fill="#0a0a0a" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="expenses" name="Expenses" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="expenses" name="Expenses (ops + salaries)" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
                 <Line
                   type="monotone"
                   dataKey="profit"
-                  name="Profit"
+                  name="Shop takeaway"
                   stroke="#2d5a3f"
                   strokeWidth={2.5}
                   dot={{ r: 3 }}

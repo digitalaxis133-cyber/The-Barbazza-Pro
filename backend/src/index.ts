@@ -233,14 +233,14 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
   const { start, end } = monthBounds(month);
   const historyStart = monthsBackStart(month, 11);
   try {
-    const cacheKey = `perf:${month}:v2`;
+    const cacheKey = `perf:${month}:v3`;
     const cached = cacheGet<unknown>(cacheKey);
     if (cached) {
       fastGetHeaders(res, 15);
       res.json(cached);
       return;
     }
-    const [salon, ranking, trend, monthly] = await Promise.all([
+    const [salon, ranking, trend, monthly, closingRows] = await Promise.all([
       query<{ income: string; customers: string; expenses: string; days: string }>(
         `SELECT
            (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date BETWEEN $1 AND $2) AS income,
@@ -274,7 +274,14 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
          GROUP BY transaction_date ORDER BY transaction_date`,
         [start, end]
       ),
-      query<{ month: string; label: string; income: string; customers: string; expenses: string }>(
+      query<{
+        month: string;
+        label: string;
+        income: string;
+        customers: string;
+        operating_expenses: string;
+        barber_salaries: string;
+      }>(
         `WITH months AS (
            SELECT date_trunc('month', d)::date AS month_start
            FROM generate_series($1::date, $2::date, INTERVAL '1 month') AS d
@@ -293,27 +300,57 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
            FROM expenses
            WHERE expense_date BETWEEN $1 AND $2
            GROUP BY 1
+         ),
+         computed_salaries AS (
+           SELECT date_trunc('month', t.transaction_date)::date AS month_start,
+                  COALESCE(SUM(
+                    t.amount * CASE
+                      WHEN b.commission_rate IS NULL THEN 0.40
+                      WHEN b.commission_rate > 0 AND b.commission_rate <= 1 THEN b.commission_rate
+                      ELSE b.commission_rate / 100.0
+                    END
+                  ), 0) AS barber_salaries
+           FROM transactions t
+           JOIN barbers b ON b.barber_id = t.barber_id
+           WHERE t.transaction_date BETWEEN $1 AND $2
+           GROUP BY 1
+         ),
+         paid_salaries AS (
+           SELECT make_date(ms.year, ms.month, 1) AS month_start,
+                  COALESCE(SUM(ms.commission_earned), 0) AS barber_salaries
+           FROM monthly_salaries ms
+           WHERE make_date(ms.year, ms.month, 1) BETWEEN $1 AND $2
+           GROUP BY 1
          )
          SELECT TO_CHAR(m.month_start, 'YYYY-MM') AS month,
                 TO_CHAR(m.month_start, 'Mon YY') AS label,
                 COALESCE(i.income, 0) AS income,
                 COALESCE(i.customers, 0) AS customers,
-                COALESCE(s.expenses, 0) AS expenses
+                COALESCE(s.expenses, 0) AS operating_expenses,
+                COALESCE(p.barber_salaries, c.barber_salaries, 0) AS barber_salaries
          FROM months m
          LEFT JOIN income i ON i.month_start = m.month_start
          LEFT JOIN spend s ON s.month_start = m.month_start
+         LEFT JOIN computed_salaries c ON c.month_start = m.month_start
+         LEFT JOIN paid_salaries p ON p.month_start = m.month_start
          ORDER BY m.month_start`,
         [historyStart, end]
       ),
+      closingSummary(month),
     ]);
     const income = num(salon[0]?.income);
-    const expenses = num(salon[0]?.expenses);
+    const operatingExpenses = num(salon[0]?.expenses);
+    // Same commission total Monthly Closing uses (barber ~40% salaries)
+    const barberSalaries = closingRows.reduce((sum, row) => sum + row.commissionEarned, 0);
+    const expenses = operatingExpenses + barberSalaries;
     const days = num(salon[0]?.days);
     const payload = {
       month: start.slice(0, 7),
       salon: {
         income,
         customers: num(salon[0]?.customers),
+        operatingExpenses,
+        barberSalaries,
         expenses,
         profit: income - expenses,
         days,
@@ -331,12 +368,16 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
       trend: trend.map((row) => ({ date: isoDate(row.day), total: num(row.total) })),
       monthlyTrend: monthly.map((row) => {
         const monthIncome = num(row.income);
-        const monthExpenses = num(row.expenses);
+        const operating = num(row.operating_expenses);
+        const salaries = num(row.barber_salaries);
+        const monthExpenses = operating + salaries;
         return {
           month: row.month,
           label: row.label.trim(),
           income: monthIncome,
           customers: num(row.customers),
+          operatingExpenses: operating,
+          barberSalaries: salaries,
           expenses: monthExpenses,
           profit: monthIncome - monthExpenses,
         };
@@ -463,16 +504,15 @@ app.get("/api/dashboard/barber", requireAuth, allow("admin"), async (req, res) =
 });
 
 async function daySnapshot(date: string) {
-  const cacheKey = `day:${date}:v2`;
-  const cached = cacheGet<ReturnType<typeof Object>>(cacheKey);
+  const cached = cacheGet<ReturnType<typeof Object>>(`day:${date}`);
   if (cached) return cached as Awaited<ReturnType<typeof daySnapshotUncached>>;
   const result = await daySnapshotUncached(date);
-  cacheSet(cacheKey, result, 8_000);
+  cacheSet(`day:${date}`, result, 8_000);
   return result;
 }
 
 async function daySnapshotUncached(date: string) {
-  const [summary, barbers, expenses, commissionRows, opsExpenseRows] = await Promise.all([
+  const [summary, barbers, expenses] = await Promise.all([
     query<{ income: string; customers: string; expenses: string }>(
       `SELECT
          (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date = $1) AS income,
@@ -513,50 +553,15 @@ async function daySnapshotUncached(date: string) {
        ORDER BY e.created_at DESC`,
       [date]
     ),
-    query<{ commission: string }>(
-      `SELECT COALESCE(SUM(
-           t.amount * (
-             CASE
-               WHEN b.commission_rate > 1 THEN b.commission_rate / 100.0
-               ELSE b.commission_rate
-             END
-           )
-         ), 0) AS commission
-       FROM transactions t
-       JOIN barbers b ON b.barber_id = t.barber_id
-       WHERE t.transaction_date = $1`,
-      [date]
-    ),
-    query<{ ops: string; salary: string }>(
-      `SELECT
-         COALESCE(SUM(e.amount) FILTER (
-           WHERE COALESCE(c.category_name, '') !~* 'salary|wage|payroll|staff pay'
-         ), 0) AS ops,
-         COALESCE(SUM(e.amount) FILTER (
-           WHERE COALESCE(c.category_name, '') ~* 'salary|wage|payroll|staff pay'
-         ), 0) AS salary
-       FROM expenses e
-       LEFT JOIN expense_categories c ON e.category_id = c.category_id
-       WHERE e.expense_date = $1`,
-      [date]
-    ),
   ]);
   const income = num(summary[0]?.income);
   const expenseTotal = num(summary[0]?.expenses);
-  const barberCommission = Math.round(num(commissionRows[0]?.commission));
-  const operatingExpenses = num(opsExpenseRows[0]?.ops);
-  const salaryExpenses = num(opsExpenseRows[0]?.salary);
-  const shopTakeaway = income - barberCommission - operatingExpenses;
   return {
     date,
     income,
     customers: num(summary[0]?.customers),
     expenses: expenseTotal,
     profit: income - expenseTotal,
-    barberCommission,
-    operatingExpenses,
-    salaryExpenses,
-    shopTakeaway,
     barbers: barbers.map((row) => ({
       code: row.barber_code,
       name: row.full_name || row.barber_code,
