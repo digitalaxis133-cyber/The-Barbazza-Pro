@@ -26,6 +26,8 @@ type MonthlyPoint = {
   customers: number;
   operatingExpenses: number;
   barberSalaries: number;
+  staffSalaries: number;
+  totalSalaries: number;
   expenses: number;
   profit: number;
 };
@@ -36,6 +38,10 @@ type Perf = {
     customers: number;
     operatingExpenses: number;
     barberSalaries: number;
+    managerSalaries: number;
+    cleanerSalaries: number;
+    staffSalaries: number;
+    totalSalaries: number;
     expenses: number;
     profit: number;
     days: number;
@@ -128,20 +134,23 @@ export default function PerformancePage() {
             <Kpi label="Total Income" value={money(data.salon.income)} />
             <Kpi label="Operating Expenses" value={money(data.salon.operatingExpenses ?? 0)} />
             <Kpi label="Barber Net Salaries" value={money(data.salon.barberSalaries ?? 0)} />
+            <Kpi label="Manager Net Salary" value={money(data.salon.managerSalaries ?? 0)} />
+            <Kpi label="Cleaner Net Salary" value={money(data.salon.cleanerSalaries ?? 0)} />
+            <Kpi label="Total Salaries" value={money(data.salon.totalSalaries ?? data.salon.barberSalaries ?? 0)} />
             <Kpi label="Total Expenses" value={money(data.salon.expenses)} />
             <Kpi label="Shop Takeaway" value={money(data.salon.profit)} />
             <Kpi label="Days Worked" value={String(data.salon.days)} />
             <Kpi label="Avg Daily Income" value={money(data.salon.avgDaily)} />
           </div>
           <p style={{ marginTop: "var(--space-3)", fontSize: "0.85rem", color: "var(--barbazza-cream)" }}>
-            Barber salaries always use <strong>Net Salary</strong> from Barbers Payment Summary (after recruitment and
-            credit deductions). Total expenses = operating costs + those net salaries. Shop takeaway is income after
-            that.
+            Barber net salaries are the full <strong>Net Salary</strong> column total from Barbers Payment Summary
+            (after all deductions, including negatives). Manager and cleaner nets use fixed salary minus approved
+            credit deductions. Total expenses = operating costs + all net salaries.
           </p>
 
           <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
           <p style={{ fontSize: "0.85rem", color: "var(--barbazza-cream)", marginBottom: "var(--space-3)" }}>
-            Last 12 months ending in the selected month — income, total expenses (ops + barber net salaries), and shop
+            Last 12 months ending in the selected month — income, total expenses (ops + all net salaries), and shop
             takeaway.
           </p>
           <div style={{ height: 320 }}>
@@ -156,7 +165,7 @@ export default function PerformancePage() {
                 />
                 <Legend />
                 <Bar dataKey="income" name="Income" fill="#0a0a0a" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="expenses" name="Expenses (ops + net salaries)" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="expenses" name="Expenses (ops + all net salaries)" fill="#8a8a8a" radius={[4, 4, 0, 0]} maxBarSize={28} />
                 <Line
                   type="monotone"
                   dataKey="profit"

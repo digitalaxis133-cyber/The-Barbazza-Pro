@@ -233,14 +233,14 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
   const { start, end } = monthBounds(month);
   const historyStart = monthsBackStart(month, 11);
   try {
-    const cacheKey = `perf:${month}:v4`;
+    const cacheKey = `perf:${month}:v5`;
     const cached = cacheGet<unknown>(cacheKey);
     if (cached) {
       fastGetHeaders(res, 15);
       res.json(cached);
       return;
     }
-    const [salon, ranking, trend, monthly, closingRows, paidNetRows] = await Promise.all([
+    const [salon, ranking, trend, monthly, closingRows, paidNetRows, staffPay] = await Promise.all([
       query<{ income: string; customers: string; expenses: string; days: string }>(
         `SELECT
            (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE transaction_date BETWEEN $1 AND $2) AS income,
@@ -321,10 +321,11 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
          GROUP BY year, month`,
         [historyStart, end]
       ),
+      staffNetSalaryTotal(),
     ]);
     const paidNetByMonth = new Map(paidNetRows.map((row) => [row.month, num(row.net_salaries)]));
 
-    // Fill open months with live Payment Summary net salaries (commission − deductions)
+    // Fill open months with live Payment Summary net salaries (full Net Salary column total)
     const openMonthKeys = monthly.map((row) => row.month).filter((key) => !paidNetByMonth.has(key));
     const openClosings = await Promise.all(
       openMonthKeys.map(async (key) => {
@@ -332,15 +333,15 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
         return [key, rows.reduce((sum, row) => sum + row.netSalary, 0)] as const;
       })
     );
-    const netSalaryByMonth = new Map<string, number>([...paidNetByMonth, ...openClosings]);
+    const barberNetByMonth = new Map<string, number>([...paidNetByMonth, ...openClosings]);
 
     const income = num(salon[0]?.income);
     const operatingExpenses = num(salon[0]?.expenses);
-    // Always Net Salary from Barbers Payment Summary (after recruitment + credit deductions)
-    const barberSalaries = paidNetByMonth.has(month)
-      ? (paidNetByMonth.get(month) as number)
-      : closingRows.reduce((sum, row) => sum + row.netSalary, 0);
-    const expenses = operatingExpenses + barberSalaries;
+    // Whole Net Salary column from Barbers Payment Summary (includes negatives)
+    const barberSalaries = barberNetByMonth.get(month) ?? closingRows.reduce((sum, row) => sum + row.netSalary, 0);
+    const { staffSalaries, managerSalaries, cleanerSalaries } = staffPay;
+    const totalSalaries = barberSalaries + staffSalaries;
+    const expenses = operatingExpenses + totalSalaries;
     const days = num(salon[0]?.days);
     const payload = {
       month: start.slice(0, 7),
@@ -349,6 +350,10 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
         customers: num(salon[0]?.customers),
         operatingExpenses,
         barberSalaries,
+        managerSalaries,
+        cleanerSalaries,
+        staffSalaries,
+        totalSalaries,
         expenses,
         profit: income - expenses,
         days,
@@ -367,7 +372,8 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
       monthlyTrend: monthly.map((row) => {
         const monthIncome = num(row.income);
         const operating = num(row.operating_expenses);
-        const salaries = netSalaryByMonth.get(row.month) ?? 0;
+        const barberNet = barberNetByMonth.get(row.month) ?? 0;
+        const salaries = barberNet + staffSalaries;
         const monthExpenses = operating + salaries;
         return {
           month: row.month,
@@ -375,7 +381,9 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
           income: monthIncome,
           customers: num(row.customers),
           operatingExpenses: operating,
-          barberSalaries: salaries,
+          barberSalaries: barberNet,
+          staffSalaries,
+          totalSalaries: salaries,
           expenses: monthExpenses,
           profit: monthIncome - monthExpenses,
         };
@@ -1794,6 +1802,43 @@ type ClosingRow = {
   totalDeductions: number;
   netSalary: number;
 };
+
+/** Manager + cleaner net pay (fixed salary − approved credit deductions), same idea as /api/staff/home. */
+async function staffNetSalaryTotal(): Promise<{ staffSalaries: number; managerSalaries: number; cleanerSalaries: number }> {
+  const rows = await query<{
+    role: string;
+    monthly_salary: string;
+    credit_deduction: string;
+  }>(
+    `SELECT u.role,
+            COALESCE(sp.monthly_salary, 0) AS monthly_salary,
+            COALESCE((
+              SELECT SUM(c.monthly_deduction)
+              FROM staff_credits c
+              WHERE c.user_id = u.user_id
+                AND c.status = 'approved'
+                AND c.remaining_balance > 0
+            ), 0) AS credit_deduction
+     FROM users u
+     JOIN staff_profiles sp ON sp.user_id = u.user_id
+     WHERE u.is_active = TRUE
+       AND u.role IN ('manager', 'cleaner')`
+  );
+  let managerSalaries = 0;
+  let cleanerSalaries = 0;
+  for (const row of rows) {
+    const salary = num(row.monthly_salary);
+    const creditDeduction = Math.min(salary, Math.max(0, num(row.credit_deduction)));
+    const net = Math.max(0, salary - creditDeduction);
+    if (row.role === "manager") managerSalaries += net;
+    else cleanerSalaries += net;
+  }
+  return {
+    managerSalaries,
+    cleanerSalaries,
+    staffSalaries: managerSalaries + cleanerSalaries,
+  };
+}
 
 async function closingSummary(monthKey: string): Promise<ClosingRow[]> {
   const [yearStr, monthStr] = monthKey.split("-");
