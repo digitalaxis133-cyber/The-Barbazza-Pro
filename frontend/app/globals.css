@@ -612,39 +612,46 @@ textarea:focus {
 }
 
 @media (max-width: 767px) {
+  /* ===== Phone = native app density ===== */
+  html {
+    font-size: 15px !important;
+  }
+
   .form-grid-2,
   .form-grid-3,
   .form-grid-4 {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 
-  /* Phone = standalone app chrome */
   .app-shell {
-    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
     overflow: visible;
     height: auto;
     max-height: none;
   }
 
   .main-header {
-    padding: max(0.65rem, env(safe-area-inset-top)) 14px 0.65rem;
+    padding: max(0.5rem, env(safe-area-inset-top)) 12px 0.5rem !important;
   }
 
   .header-logo {
-    gap: 10px;
+    gap: 8px !important;
   }
 
   .header-logo img {
-    height: 36px;
+    height: 30px !important;
   }
 
   .header-title {
-    font-size: 1.15rem;
-    letter-spacing: 0.1em;
+    font-size: 1rem !important;
+    letter-spacing: 0.08em !important;
+    margin: 0 !important;
   }
 
   .header-role-mobile {
     display: block;
+    font-size: 9px !important;
   }
 
   .header-welcome,
@@ -653,18 +660,19 @@ textarea:focus {
   }
 
   .btn-logout {
-    padding: 0.45rem 0.7rem;
-    font-size: 0.75rem;
-    min-height: 36px;
+    padding: 0.35rem 0.65rem !important;
+    font-size: 0.72rem !important;
+    min-height: 32px !important;
+    width: auto !important;
+    margin: 0 !important;
   }
 
-  /* Top tabs stay on desktop; phone uses bottom bar */
   .desktop-tabs {
     display: none !important;
   }
 
   .app-content {
-    padding: 12px 12px 8px;
+    padding: 10px 10px 6px !important;
     max-width: none;
     overflow: visible;
     height: auto;
@@ -678,12 +686,12 @@ textarea:focus {
     right: 0;
     bottom: 0;
     z-index: 50;
-    border-top: 2px solid var(--barbazza-gold, #0a0a0a);
-    background: rgba(248, 248, 248, 0.94);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
+    border-top: 1px solid var(--barbazza-graphite, #e8e8e8);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.06);
   }
 
   .mobile-bottom-nav-inner {
@@ -691,7 +699,7 @@ textarea:focus {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    gap: 2px;
+    gap: 0;
   }
 
   .mobile-bottom-nav-inner::-webkit-scrollbar {
@@ -700,21 +708,21 @@ textarea:focus {
 
   .mobile-tab {
     flex: 1 0 auto;
-    min-width: 64px;
-    max-width: 88px;
+    min-width: 56px;
+    max-width: 76px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 8px 6px;
-    border-radius: 12px;
+    gap: 2px;
+    padding: 6px 4px;
+    border-radius: 10px;
     text-decoration: none;
     color: var(--barbazza-stone, #6a6a6a);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: background 0.15s ease, color 0.15s ease;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
   }
 
   .mobile-tab.active {
@@ -724,34 +732,363 @@ textarea:focus {
 
   .mobile-tab-icon {
     flex-shrink: 0;
+    width: 18px !important;
+    height: 18px !important;
   }
 
+  /* Cards: tighter app tiles */
   .manager-card,
   .admin-card,
   .barber-card,
   .supervisor-card {
-    border-radius: 12px;
+    border-radius: 14px !important;
+    padding: 12px !important;
+    margin-bottom: 10px !important;
   }
 
+  .panel-header {
+    margin-bottom: 10px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .panel-header h3,
+  .admin-card h3,
+  .manager-card h3,
+  .barber-card h3,
+  .supervisor-card h3 {
+    font-size: 1.05rem !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px !important;
+  }
+
+  .panel-actions .btn-primary,
+  .panel-actions .btn-action,
+  .panel-actions .btn-logout,
+  .panel-actions input[type="date"] {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 36px !important;
+    height: auto !important;
+    padding: 7px 12px !important;
+    font-size: 0.78rem !important;
+    margin: 0 !important;
+    text-transform: none !important;
+    letter-spacing: 0.02em !important;
+    flex: 0 0 auto;
+  }
+
+  .panel-actions input[type="date"] {
+    flex: 1 1 auto;
+    min-width: 9.5rem !important;
+  }
+
+  /* KPI strip: compact 2-up */
   .daily-summary,
   .earnings-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: var(--space-3) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
   }
 
-  /* Full-width touch controls */
-  .btn-action,
+  .stat-card,
+  .summary-card,
+  .earnings-card {
+    padding: 10px 8px !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  .stat-value,
+  .summary-value {
+    font-size: 1.05rem !important;
+    margin: 2px 0 0 !important;
+    line-height: 1.2 !important;
+    word-break: break-word;
+  }
+
+  .stat-label,
+  .summary-label {
+    font-size: 0.65rem !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  /* Reset desktop full-bleed primary; only form submits stay full width */
   .btn-primary,
-  button.btn-action {
-    min-height: 48px;
-    width: 100%;
+  .btn-action {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 40px !important;
+    font-size: 0.85rem !important;
+    padding: 8px 12px !important;
+    margin-bottom: 0 !important;
+    text-transform: none !important;
+    letter-spacing: 0.02em !important;
+    border-radius: 12px !important;
+  }
+
+  .login-box .btn-primary,
+  .service-form > .btn-primary,
+  .service-form > .btn-action,
+  form.service-form .btn-primary:last-of-type,
+  .action-modal-body form > .btn-primary,
+  .form-group > .btn-primary[type="submit"],
+  .form-group > .btn-action[type="submit"] {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 0.9rem !important;
+    padding: 10px 14px !important;
+  }
+
+  .action-modal-footer .btn-logout,
+  .action-modal-footer .btn-action,
+  .action-modal-footer .btn-primary {
+    width: auto !important;
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  td .btn-action,
+  td .btn-logout,
+  td .btn-primary,
+  .todo-actions .btn-action,
+  .todo-actions .btn-logout,
+  .todo-actions .btn-primary,
+  .btn-action-edit,
+  .btn-action-delete {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+    margin: 0 4px 4px 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    text-transform: none !important;
   }
 
   input,
   select,
-  textarea {
-    min-height: 48px;
+  textarea,
+  .form-control {
+    min-height: 44px !important;
     font-size: 16px !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  label {
+    font-size: 0.8rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .service-form {
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .alert {
+    padding: 10px 12px !important;
+    font-size: 0.85rem !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Tables → stacked mobile cards */
+  .data-table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 8px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .data-table thead {
+    display: none !important;
+  }
+
+  .data-table tbody {
+    display: block !important;
+  }
+
+  .data-table tr {
+    display: block !important;
+    background: var(--barbazza-slate, #f0f0f0);
+    border: 1px solid var(--barbazza-graphite, #e8e8e8);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin: 0 !important;
+  }
+
+  .data-table td {
+    display: flex !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0 !important;
+    border: none !important;
+    white-space: normal !important;
+    text-align: right !important;
+    color: var(--barbazza-cream, #2a2a2a) !important;
+    background: transparent !important;
+  }
+
+  .data-table td:last-child {
+    padding-bottom: 0 !important;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    max-width: 42%;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--barbazza-stone, #6a6a6a);
+  }
+
+  .data-table td:not([data-label])::before,
+  .data-table td[data-label=""]::before {
+    display: none;
+  }
+
+  .data-table td:not([data-label]),
+  .data-table td[data-label=""] {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .data-table tr:hover td {
+    background: transparent !important;
+  }
+
+  /* Charts stay inside the phone frame */
+  .recharts-responsive-container,
+  .recharts-wrapper {
+    max-width: 100% !important;
+  }
+
+  .app-content div[style*="height: 260"],
+  .app-content div[style*="height:260"],
+  .app-content div[style*="height: 300"],
+  .app-content div[style*="height:300"],
+  .app-content div[style*="height: 320"],
+  .app-content div[style*="height:320"] {
+    height: 200px !important;
+  }
+
+  /* Calendar / dense action rows */
+  .app-content button.btn-primary[style*="minHeight: 32"],
+  .app-content button.btn-primary[style*="min-height: 32"] {
+    width: auto !important;
+    min-height: 34px !important;
+    font-size: 0.75rem !important;
+    padding: 6px 10px !important;
+    margin: 0 4px 4px 0 !important;
+    display: inline-flex !important;
+  }
+
+  /* Action modals → bottom sheets */
+  .action-modal-backdrop,
+  .todo-modal-backdrop {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+  }
+
+  .action-modal,
+  .todo-modal,
+  .action-modal-wide {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(92dvh, 92vh) !important;
+    margin: 0 !important;
+    border-radius: 18px 18px 0 0 !important;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .action-modal-header h3,
+  .todo-modal h3 {
+    font-size: 1.05rem !important;
+  }
+
+  .action-modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: inherit;
+    padding-top: 10px;
+    gap: 8px !important;
+  }
+
+  /* Todo phone layout */
+  .todo-layout {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .todo-filters {
+    gap: 4px !important;
+  }
+
+  .todo-chip,
+  .todo-list-btn {
+    font-size: 0.75rem !important;
+    padding: 6px 9px !important;
+    min-height: 32px;
+  }
+
+  .todo-item {
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .todo-actions {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+
+  .todo-toolbar {
+    gap: 6px !important;
+  }
+
+  .todo-toolbar select,
+  .todo-toolbar .btn-logout {
+    width: auto !important;
+    min-height: 36px !important;
+    font-size: 0.78rem !important;
+    margin: 0 !important;
+    padding: 7px 10px !important;
+  }
+
+  .todo-search {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  /* Inline overflow wrappers shouldn't force desktop table width */
+  .app-content [style*="overflow"],
+  .app-content [style*="overflowX"],
+  .app-content [style*="overflow-x"] {
+    max-width: 100%;
+  }
+
+  /* Fixed confirm overlays (monthly closing, etc.) as sheets */
+  .app-content > div[style*="position: fixed"],
+  .app-shell > div[style*="position: fixed"] {
+    padding: 0 !important;
+    align-items: flex-end !important;
   }
 }
 

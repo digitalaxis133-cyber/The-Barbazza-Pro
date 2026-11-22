@@ -133,10 +133,10 @@ export default function BarberCalendarPage() {
                 <td>{b.service || "—"}</td>
                 <td>{b.status}</td>
                 <td style={{ whiteSpace: "nowrap" }}>
-                  <button type="button" className="btn-primary" style={{ minHeight: 32, marginRight: 4 }} onClick={() => setStatus(b.id, "confirmed")}>
+                  <button type="button" className="btn-action" style={{ width: "auto", minHeight: 34, marginRight: 4 }} onClick={() => setStatus(b.id, "confirmed")}>
                     Confirm
                   </button>
-                  <button type="button" className="btn-primary" style={{ minHeight: 32 }} onClick={() => setStatus(b.id, "cancelled")}>
+                  <button type="button" className="btn-logout" style={{ width: "auto", minHeight: 34 }} onClick={() => setStatus(b.id, "cancelled")}>
                     Cancel
                   </button>
                 </td>
@@ -147,7 +147,13 @@ export default function BarberCalendarPage() {
       </Panel>
 
       <Panel title={`Notifications${unread ? ` (${unread})` : ""}`} className="manager-card">
-        <button type="button" className="btn-primary" style={{ marginBottom: 12 }} onClick={() => markRead()} disabled={!unread}>
+        <button
+          type="button"
+          className="btn-action"
+          style={{ width: "auto", minHeight: 36, marginBottom: 12 }}
+          onClick={() => markRead()}
+          disabled={!unread}
+        >
           Mark all read
         </button>
         {!notes.length ? <p style={{ color: "var(--barbazza-stone)" }}>No notifications yet.</p> : null}
@@ -165,7 +171,12 @@ export default function BarberCalendarPage() {
               <div style={{ fontSize: 12, opacity: 0.7 }}>{n.createdAt}</div>
               <p style={{ margin: "6px 0" }}>{n.body}</p>
               {!n.read ? (
-                <button type="button" className="btn-primary" style={{ minHeight: 32 }} onClick={() => markRead(n.id)}>
+                <button
+                  type="button"
+                  className="btn-action"
+                  style={{ width: "auto", minHeight: 34 }}
+                  onClick={() => markRead(n.id)}
+                >
                   Mark read
                 </button>
               ) : null}
