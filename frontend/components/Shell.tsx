@@ -22,7 +22,6 @@ import {
 import { clearApiCache, readSession, Role, SessionUser } from "@/lib/api";
 import { wakeApi } from "@/lib/wakeApi";
 import { AppBootSkeleton, PageSkeleton } from "@/components/Skeleton";
-import { TableMobileEnhance } from "@/components/TableMobileEnhance";
 
 type NavItem = {
   href: string;
@@ -161,7 +160,6 @@ export function Shell({
       ) : null}
 
       <main className="app-content">{loading ? <PageSkeleton /> : children}</main>
-      <TableMobileEnhance />
 
       {/* Mobile app bottom tab bar */}
       {items.length > 1 ? (

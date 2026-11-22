@@ -905,73 +905,102 @@ textarea:focus {
     margin-bottom: 10px !important;
   }
 
-  /* Tables → stacked mobile cards */
+  /* Tables stay tables — compact + horizontal scroll, sticky first column */
+  .admin-card,
+  .manager-card,
+  .barber-card,
+  .supervisor-card,
+  .app-content [style*="overflow"],
+  .app-content [style*="overflowX"],
+  .app-content [style*="overflow-x"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
   .data-table {
-    width: 100% !important;
-    border-collapse: separate !important;
-    border-spacing: 0 8px !important;
-    font-size: 0.85rem !important;
+    display: table !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    font-size: 0.78rem !important;
+    table-layout: auto !important;
   }
 
   .data-table thead {
-    display: none !important;
+    display: table-header-group !important;
   }
 
   .data-table tbody {
-    display: block !important;
+    display: table-row-group !important;
   }
 
   .data-table tr {
-    display: block !important;
-    background: var(--barbazza-slate, #f0f0f0);
-    border: 1px solid var(--barbazza-graphite, #e8e8e8);
-    border-radius: 12px;
-    padding: 10px 12px;
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
     margin: 0 !important;
   }
 
+  .data-table th,
   .data-table td {
-    display: flex !important;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 0 !important;
-    border: none !important;
-    white-space: normal !important;
-    text-align: right !important;
-    color: var(--barbazza-cream, #2a2a2a) !important;
-    background: transparent !important;
+    display: table-cell !important;
+    padding: 8px 10px !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+    border-bottom: 1px solid var(--barbazza-graphite, #e8e8e8) !important;
   }
 
-  .data-table td:last-child {
-    padding-bottom: 0 !important;
+  .data-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--barbazza-slate, #f0f0f0) !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
   }
 
   .data-table td::before {
-    content: attr(data-label);
-    flex: 0 0 42%;
-    max-width: 42%;
-    text-align: left;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--barbazza-stone, #6a6a6a);
+    content: none !important;
+    display: none !important;
   }
 
-  .data-table td:not([data-label])::before,
-  .data-table td[data-label=""]::before {
-    display: none;
+  /* Keep the first column readable while swiping across */
+  .data-table th:first-child,
+  .data-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--barbazza-charcoal, #f8f8f8) !important;
+    box-shadow: 4px 0 8px rgba(0, 0, 0, 0.04);
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .data-table td:not([data-label]),
-  .data-table td[data-label=""] {
-    justify-content: flex-end;
-    flex-wrap: wrap;
+  .data-table th:first-child {
+    z-index: 4;
+    background: var(--barbazza-slate, #f0f0f0) !important;
+  }
+
+  .data-table td:last-child {
+    white-space: nowrap !important;
   }
 
   .data-table tr:hover td {
-    background: transparent !important;
+    background: var(--barbazza-slate, #f0f0f0) !important;
+  }
+
+  .data-table tr:hover td:first-child {
+    background: var(--barbazza-slate, #f0f0f0) !important;
   }
 
   /* Charts stay inside the phone frame */
