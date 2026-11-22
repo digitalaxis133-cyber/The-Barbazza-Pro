@@ -93,7 +93,7 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="form-group">
-          <button type="submit" className="btn-primary" disabled={busy}>
+          <button type="submit" className={`btn-primary${busy ? " btn-processing" : ""}`} disabled={busy}>
             {busy ? "Signing in…" : "Login"}
           </button>
         </div>

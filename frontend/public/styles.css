@@ -764,9 +764,15 @@ select option {
   margin-bottom: var(--space-6);
 }
 
-/* Login Button States */
-.btn-primary:disabled,
-.btn-primary.btn-processing {
+/* Disabled primary = muted only. Spinner is opt-in via .btn-processing. */
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary.btn-processing,
+.btn-primary.btn-processing:disabled {
   opacity: 0.9;
   cursor: not-allowed;
   position: relative;
@@ -785,8 +791,7 @@ input:disabled {
   display: none !important;
 }
 
-/* Spinning Loading Indicator */
-.btn-primary:disabled::before,
+/* Spinning Loading Indicator — only while actively processing */
 .btn-primary.btn-processing::before {
   content: "";
   position: absolute;
@@ -811,7 +816,6 @@ input:disabled {
 }
 
 /* Alternative pulsing background for button */
-.btn-primary:disabled::after,
 .btn-primary.btn-processing::after {
   content: "";
   position: absolute;

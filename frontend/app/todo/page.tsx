@@ -321,7 +321,11 @@ export default function TodoPage() {
               <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional details" />
             </div>
           </div>
-          <button type="submit" className="btn-primary" disabled={busy || !title.trim()}>
+          <button
+            type="submit"
+            className={`btn-primary${busy ? " btn-processing" : ""}`}
+            disabled={busy || !title.trim()}
+          >
             <Plus size={16} style={{ marginRight: 6, verticalAlign: "middle" }} />
             {busy ? "Adding…" : "Add todo"}
           </button>
@@ -378,7 +382,11 @@ export default function TodoPage() {
 
           <form onSubmit={addList} className="todo-list-add">
             <input value={listName} onChange={(e) => setListName(e.target.value)} placeholder="New list name" />
-            <button type="submit" className="btn-primary" disabled={busy || !listName.trim()}>
+            <button
+              type="submit"
+              className={`btn-primary${busy ? " btn-processing" : ""}`}
+              disabled={busy || !listName.trim()}
+            >
               Add list
             </button>
           </form>
@@ -546,7 +554,11 @@ export default function TodoPage() {
               <button type="button" className="btn-logout" onClick={() => setEditing(null)}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" disabled={busy || !editing.title.trim()}>
+              <button
+                type="submit"
+                className={`btn-primary${busy ? " btn-processing" : ""}`}
+                disabled={busy || !editing.title.trim()}
+              >
                 Save
               </button>
             </div>
