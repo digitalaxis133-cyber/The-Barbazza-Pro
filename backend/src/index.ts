@@ -233,7 +233,7 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
   const { start, end } = monthBounds(month);
   const historyStart = monthsBackStart(month, 11);
   try {
-    const cacheKey = `perf:${month}:v5`;
+    const cacheKey = `perf:${month}:v6`;
     const cached = cacheGet<unknown>(cacheKey);
     if (cached) {
       fastGetHeaders(res, 15);
@@ -312,10 +312,10 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
         [historyStart, end]
       ),
       closingSummary(month),
-      // Stored Payment Summary net salaries (after all deductions) when a month was closed
+      // Stored Payment Summary net salaries — positives only (what the shop actually pays out)
       query<{ month: string; net_salaries: string }>(
         `SELECT LPAD(year::text, 4, '0') || '-' || LPAD(month::text, 2, '0') AS month,
-                COALESCE(SUM(net_salary), 0) AS net_salaries
+                COALESCE(SUM(CASE WHEN net_salary > 0 THEN net_salary ELSE 0 END), 0) AS net_salaries
          FROM monthly_salaries
          WHERE make_date(year, month, 1) BETWEEN $1 AND $2
          GROUP BY year, month`,
@@ -325,20 +325,21 @@ app.get("/api/dashboard/performance", requireAuth, allow("admin", "manager"), as
     ]);
     const paidNetByMonth = new Map(paidNetRows.map((row) => [row.month, num(row.net_salaries)]));
 
-    // Fill open months with live Payment Summary net salaries (full Net Salary column total)
+    // Fill open months with live Payment Summary net salaries (positive Net Salary only)
     const openMonthKeys = monthly.map((row) => row.month).filter((key) => !paidNetByMonth.has(key));
     const openClosings = await Promise.all(
       openMonthKeys.map(async (key) => {
         const rows = await closingSummary(key);
-        return [key, rows.reduce((sum, row) => sum + row.netSalary, 0)] as const;
+        return [key, rows.reduce((sum, row) => sum + Math.max(0, row.netSalary), 0)] as const;
       })
     );
     const barberNetByMonth = new Map<string, number>([...paidNetByMonth, ...openClosings]);
 
     const income = num(salon[0]?.income);
     const operatingExpenses = num(salon[0]?.expenses);
-    // Whole Net Salary column from Barbers Payment Summary (includes negatives)
-    const barberSalaries = barberNetByMonth.get(month) ?? closingRows.reduce((sum, row) => sum + row.netSalary, 0);
+    // Positive Net Salary only from Barbers Payment Summary (shop payout, skip negatives)
+    const barberSalaries =
+      barberNetByMonth.get(month) ?? closingRows.reduce((sum, row) => sum + Math.max(0, row.netSalary), 0);
     const { staffSalaries, managerSalaries, cleanerSalaries } = staffPay;
     const totalSalaries = barberSalaries + staffSalaries;
     const expenses = operatingExpenses + totalSalaries;

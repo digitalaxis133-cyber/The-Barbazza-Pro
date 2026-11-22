@@ -143,9 +143,9 @@ export default function PerformancePage() {
             <Kpi label="Avg Daily Income" value={money(data.salon.avgDaily)} />
           </div>
           <p style={{ marginTop: "var(--space-3)", fontSize: "0.85rem", color: "var(--barbazza-cream)" }}>
-            Barber net salaries are the full <strong>Net Salary</strong> column total from Barbers Payment Summary
-            (after all deductions, including negatives). Manager and cleaner nets use fixed salary minus approved
-            credit deductions. Total expenses = operating costs + all net salaries.
+            Barber net salaries sum only <strong>positive</strong> Net Salary rows from Barbers Payment Summary
+            (what the shop pays out; negatives are excluded). Manager and cleaner nets use fixed salary minus
+            approved credit deductions. Total expenses = operating costs + all net salaries.
           </p>
 
           <h4 style={{ marginTop: "var(--space-6)" }}>Performance Over Months</h4>
