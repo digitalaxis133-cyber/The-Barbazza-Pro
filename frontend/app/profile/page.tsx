@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BusyButton } from "@/components/BusyButton";
 import { Panel, Shell, useSession } from "@/components/Shell";
 import { PageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
@@ -255,9 +256,9 @@ export default function ProfileStudioPage() {
                 <label className="form-label">Bio</label>
                 <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={5} placeholder="Tell clients who you are in the chair" />
               </div>
-              <button type="submit" className="btn-primary" disabled={busy}>
+              <BusyButton type="submit" variant="primary" busy={busy}>
                 {busy ? "Saving…" : "Save profile"}
-              </button>
+              </BusyButton>
             </form>
 
             <hr style={{ margin: "1.5rem 0", borderColor: "var(--barbazza-graphite)" }} />
@@ -273,9 +274,15 @@ export default function ProfileStudioPage() {
                   <div style={{ height: 100, background: `url(${item.imageUrl}) center/cover`, filter: "grayscale(1)" }} />
                   <div style={{ padding: 8, fontSize: 12 }}>
                     {item.caption || "Work"}
-                    <button type="button" className="btn-primary" style={{ display: "block", marginTop: 6, minHeight: 32 }} onClick={() => removeWork(item.id)} disabled={busy}>
+                    <BusyButton
+                      type="button"
+                      variant="primary"
+                      style={{ display: "block", marginTop: 6, minHeight: 32 }}
+                      onClick={() => removeWork(item.id)}
+                      busy={busy}
+                    >
                       Remove
-                    </button>
+                    </BusyButton>
                   </div>
                 </div>
               ))}

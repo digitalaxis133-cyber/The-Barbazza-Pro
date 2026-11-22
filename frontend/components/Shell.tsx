@@ -193,16 +193,23 @@ export function Kpi({ label, value }: { label: string; value: string; accent?: b
 
 export function Panel({
   title,
+  actions,
   children,
   className = "manager-card",
 }: {
   title?: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <section className={className}>
-      {title ? <h3>{title}</h3> : null}
+      {title || actions ? (
+        <div className="panel-header">
+          {title ? <h3>{title}</h3> : <span />}
+          {actions ? <div className="panel-actions">{actions}</div> : null}
+        </div>
+      ) : null}
       {children}
     </section>
   );

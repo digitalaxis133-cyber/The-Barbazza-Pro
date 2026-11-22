@@ -772,7 +772,11 @@ select option {
 }
 
 .btn-primary.btn-processing,
-.btn-primary.btn-processing:disabled {
+.btn-primary.btn-processing:disabled,
+.btn-action.btn-processing,
+.btn-action.btn-processing:disabled,
+.btn-logout.btn-processing,
+.btn-logout.btn-processing:disabled {
   opacity: 0.9;
   cursor: not-allowed;
   position: relative;
@@ -792,7 +796,9 @@ input:disabled {
 }
 
 /* Spinning Loading Indicator — only while actively processing */
-.btn-primary.btn-processing::before {
+.btn-primary.btn-processing::before,
+.btn-action.btn-processing::before,
+.btn-logout.btn-processing::before {
   content: "";
   position: absolute;
   right: var(--space-4);
@@ -816,7 +822,9 @@ input:disabled {
 }
 
 /* Alternative pulsing background for button */
-.btn-primary.btn-processing::after {
+.btn-primary.btn-processing::after,
+.btn-action.btn-processing::after,
+.btn-logout.btn-processing::after {
   content: "";
   position: absolute;
   top: 0;
@@ -1296,8 +1304,14 @@ input:disabled {
   .admin-card > h3,
   .manager-card > h3,
   .supervisor-card > h3,
-  .barber-card > h3 {
+  .barber-card > h3,
+  .panel-header h3 {
     font-size: 1.25rem !important;
+  }
+  .admin-card > h3,
+  .manager-card > h3,
+  .supervisor-card > h3,
+  .barber-card > h3 {
     margin-bottom: var(--space-3) !important;
   }
   

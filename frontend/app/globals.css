@@ -755,6 +755,88 @@ textarea:focus {
   }
 }
 
+/* ===== Panel header + action modal ===== */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4, 1rem);
+}
+.panel-header h3 {
+  margin: 0 !important;
+}
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.panel-actions .btn-primary,
+.panel-actions .btn-action {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+.action-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+.action-modal {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  margin: auto;
+}
+.action-modal-wide {
+  width: min(920px, 100%);
+}
+.action-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-4, 1rem);
+}
+.action-modal-header h3 {
+  margin: 0;
+}
+.action-modal-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.action-modal-close:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.action-modal-body .btn-primary,
+.action-modal-body .btn-action {
+  width: auto;
+  min-width: 140px;
+}
+.action-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: var(--space-4, 1rem);
+}
+
 /* ===== Admin Todo ===== */
 .todo-layout {
   display: grid;

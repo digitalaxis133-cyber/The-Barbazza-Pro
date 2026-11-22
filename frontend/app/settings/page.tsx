@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { BusyButton } from "@/components/BusyButton";
 import { Panel, Shell, useSession } from "@/components/Shell";
 import { api, money } from "@/lib/api";
 import { shopBusinessDate } from "@/lib/time";
@@ -160,9 +161,9 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-            <button type="submit" className="btn-primary" disabled={busy}>
+            <BusyButton type="submit" variant="primary" busy={busy}>
               {busy ? "Saving…" : "Save Settings"}
-            </button>
+            </BusyButton>
           </form>
         )}
       </Panel>
@@ -175,14 +176,26 @@ export default function SettingsPage() {
             <input type="date" value={lockDate} onChange={(e) => setLockDate(e.target.value)} />
           </div>
           <div className="form-group" style={{ display: "flex", alignItems: "flex-end" }}>
-            <button type="button" className="btn-primary" style={{ width: "100%", background: "#c0392b" }} onClick={lockDay} disabled={busy}>
+            <BusyButton
+              type="button"
+              variant="primary"
+              style={{ width: "100%", background: "#c0392b" }}
+              onClick={lockDay}
+              busy={busy}
+            >
               Lock Day
-            </button>
+            </BusyButton>
           </div>
           <div className="form-group" style={{ display: "flex", alignItems: "flex-end" }}>
-            <button type="button" className="btn-primary" style={{ width: "100%", background: "#2d5a3f" }} onClick={unlockDay} disabled={busy}>
+            <BusyButton
+              type="button"
+              variant="primary"
+              style={{ width: "100%", background: "#2d5a3f" }}
+              onClick={unlockDay}
+              busy={busy}
+            >
               Unlock Day
-            </button>
+            </BusyButton>
           </div>
         </div>
         <h4 style={{ marginTop: "var(--space-5)" }}>Locked Days</h4>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BusyButton } from "@/components/BusyButton";
 import { Shell, useSession } from "@/components/Shell";
 import { api, money } from "@/lib/api";
 
@@ -25,6 +26,7 @@ export default function CreditsPage() {
   const [history, setHistory] = useState<Credit[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   async function load() {
     const [p, a, h] = await Promise.all([
@@ -60,7 +62,8 @@ export default function CreditsPage() {
   }
 
   async function decide(row: Credit, decision: "approved" | "rejected") {
-    // Optimistic UI — move row out of pending immediately
+    const key = `${row.kind}-${row.id}-${decision}`;
+    setBusyKey(key);
     setPending((prev) => prev.filter((r) => !(r.id === row.id && r.kind === row.kind)));
     try {
       await api(`/api/credits/${row.id}/decide`, {
@@ -71,6 +74,8 @@ export default function CreditsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update credit");
       void load();
+    } finally {
+      setBusyKey(null);
     }
   }
 
@@ -117,17 +122,25 @@ export default function CreditsPage() {
                     <td>
                       {canDecide(row) ? (
                         <>
-                          <button
+                          <BusyButton
                             type="button"
-                            className="btn-action"
+                            variant="action"
                             style={{ width: "auto", marginRight: 8 }}
                             onClick={() => decide(row, "approved")}
+                            busy={busyKey === `${row.kind}-${row.id}-approved`}
+                            disabled={busyKey !== null}
                           >
                             Approve
-                          </button>
-                          <button type="button" className="btn-logout" onClick={() => decide(row, "rejected")}>
+                          </BusyButton>
+                          <BusyButton
+                            type="button"
+                            variant="danger"
+                            onClick={() => decide(row, "rejected")}
+                            busy={busyKey === `${row.kind}-${row.id}-rejected`}
+                            disabled={busyKey !== null}
+                          >
                             Reject
-                          </button>
+                          </BusyButton>
                         </>
                       ) : (
                         <span style={{ opacity: 0.7 }}>Waiting</span>

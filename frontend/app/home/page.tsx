@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { ActionModal } from "@/components/ActionModal";
+import { BusyButton } from "@/components/BusyButton";
 import { Kpi, Panel, Shell, useSession } from "@/components/Shell";
 import { PageSkeleton } from "@/components/Skeleton";
 import { api, money } from "@/lib/api";
@@ -103,6 +105,8 @@ export default function HomePage() {
     discountReason: "",
   });
   const [editingTx, setEditingTx] = useState<number | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [date, setDate] = useState(() => shopBusinessDate());
 
   const selectedService = services.find((s) => s.id === Number(form.serviceId));
@@ -140,6 +144,20 @@ export default function HomePage() {
     })();
   }, [user, date]);
 
+  function openCreateTx() {
+    setEditingTx(null);
+    setForm({ barberId: "", serviceId: "", amount: "", customerName: "", notes: "", discountReason: "" });
+    setError("");
+    setFormOpen(true);
+  }
+
+  function closeTxForm() {
+    if (busy) return;
+    setFormOpen(false);
+    setEditingTx(null);
+    setForm({ barberId: "", serviceId: "", amount: "", customerName: "", notes: "", discountReason: "" });
+  }
+
   async function addService(event: FormEvent) {
     event.preventDefault();
     setError("");
@@ -147,6 +165,7 @@ export default function HomePage() {
       setError("Discount reason is required when amount is below base price");
       return;
     }
+    setBusy(true);
     try {
       const payload = {
         barberId: Number(form.barberId),
@@ -163,16 +182,26 @@ export default function HomePage() {
       }
       setForm({ barberId: "", serviceId: "", amount: "", customerName: "", notes: "", discountReason: "" });
       setEditingTx(null);
+      setFormOpen(false);
       void loadManager();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save service");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function removeTx(id: number) {
     if (!confirm("Delete this transaction?")) return;
-    await api(`/api/transactions/${id}`, { method: "DELETE" });
-    void loadManager();
+    setBusy(true);
+    try {
+      await api(`/api/transactions/${id}`, { method: "DELETE" });
+      void loadManager();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function startEditTx(tx: Operations["transactions"][number]) {
@@ -185,6 +214,8 @@ export default function HomePage() {
       notes: tx.notes?.replace(/\s*\|\s*Discount:.*$/, "") || "",
       discountReason: tx.notes?.match(/Discount:\s*(.*)$/)?.[1] || "",
     });
+    setError("");
+    setFormOpen(true);
   }
 
   const cardClass =
@@ -207,7 +238,7 @@ export default function HomePage() {
 
   return (
     <Shell loading={loading}>
-      {error ? <div className="alert alert-danger">{error}</div> : null}
+      {error && !formOpen ? <div className="alert alert-danger">{error}</div> : null}
       {!user ? <PageSkeleton /> : null}
 
       {/* ===== CLEANER: Salary dashboard ===== */}
@@ -239,111 +270,15 @@ export default function HomePage() {
             </div>
           </Panel>
 
-          <Panel title={editingTx ? "Edit Service Transaction" : "Add Service Transaction"} className="manager-card">
-            <form onSubmit={addService} className="service-form">
-              <div className="form-grid form-grid-3">
-                <div className="form-group">
-                  <label>Select Barber *</label>
-                  <select
-                    required
-                    value={form.barberId}
-                    onChange={(e) => setForm({ ...form, barberId: e.target.value })}
-                  >
-                    <option value="">Select...</option>
-                    {barbers.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Select Service *</label>
-                  <select
-                    required
-                    value={form.serviceId}
-                    onChange={(e) => {
-                      const service = services.find((s) => s.id === Number(e.target.value));
-                      setForm({
-                        ...form,
-                        serviceId: e.target.value,
-                        amount: service?.price != null ? String(service.price) : form.amount,
-                        discountReason: "",
-                      });
-                    }}
-                  >
-                    <option value="">Select...</option>
-                    {services.filter((s) => s.active !== false).map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Amount (RWF) *</label>
-                  <input
-                    required
-                    type="number"
-                    min={0}
-                    step={100}
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  />
-                  {selectedService?.price != null ? (
-                    <small style={{ color: "var(--barbazza-cream)" }}>Base Price: {money(selectedService.price)}</small>
-                  ) : null}
-                </div>
-              </div>
-              {needsDiscount ? (
-                <div className="form-group">
-                  <label>Discount Reason *</label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={form.discountReason}
-                    onChange={(e) => setForm({ ...form, discountReason: e.target.value })}
-                    placeholder="Required when price is less than base price"
-                  />
-                </div>
-              ) : null}
-              <div className="form-grid form-grid-2">
-                <div className="form-group">
-                  <label>Customer Name (Optional)</label>
-                  <input
-                    value={form.customerName}
-                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Notes (Optional)</label>
-                  <textarea
-                    rows={2}
-                    value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  />
-                </div>
-              </div>
-              <button type="submit" className="btn-action">
-                {editingTx ? "Save Transaction" : "Add Service"}
-              </button>
-              {editingTx ? (
-                <button
-                  type="button"
-                  className="btn-logout"
-                  style={{ marginLeft: 12 }}
-                  onClick={() => {
-                    setEditingTx(null);
-                    setForm({ barberId: "", serviceId: "", amount: "", customerName: "", notes: "", discountReason: "" });
-                  }}
-                >
-                  Cancel
-                </button>
-              ) : null}
-            </form>
-          </Panel>
-
-          <Panel title="Today's Transactions" className="manager-card">
+          <Panel
+            title="Today's Transactions"
+            className="manager-card"
+            actions={
+              <BusyButton variant="primary" onClick={openCreateTx} busy={busy && !formOpen}>
+                Add Service
+              </BusyButton>
+            }
+          >
             <div style={{ overflowX: "auto" }}>
               <table className="data-table">
                 <thead>
@@ -359,7 +294,7 @@ export default function HomePage() {
                 <tbody>
                   {ops.transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={6}>No transactions today.</td>
+                      <td colSpan={6}>No transactions today. Add a service to get started.</td>
                     </tr>
                   ) : (
                     ops.transactions.map((tx) => (
@@ -372,12 +307,17 @@ export default function HomePage() {
                         <td>{tx.customer || "-"}</td>
                         <td>{money(tx.amount)}</td>
                         <td style={{ whiteSpace: "nowrap" }}>
-                          <button type="button" className="btn-action" style={{ width: "auto", marginRight: 6 }} onClick={() => startEditTx(tx)}>
+                          <BusyButton
+                            variant="action"
+                            style={{ width: "auto", marginRight: 6 }}
+                            onClick={() => startEditTx(tx)}
+                            disabled={busy}
+                          >
                             Edit
-                          </button>
-                          <button type="button" className="btn-logout" onClick={() => removeTx(tx.id)}>
+                          </BusyButton>
+                          <BusyButton variant="danger" onClick={() => removeTx(tx.id)} busy={busy}>
                             Delete
-                          </button>
+                          </BusyButton>
                         </td>
                       </tr>
                     ))
@@ -386,6 +326,115 @@ export default function HomePage() {
               </table>
             </div>
           </Panel>
+
+          {formOpen ? (
+            <ActionModal
+              title={editingTx ? "Edit Service Transaction" : "Add Service Transaction"}
+              onClose={closeTxForm}
+              busy={busy}
+            >
+              {error ? <div className="alert alert-danger">{error}</div> : null}
+              <form onSubmit={addService} className="service-form">
+                <div className="form-grid form-grid-2">
+                  <div className="form-group">
+                    <label>Select Barber *</label>
+                    <select
+                      required
+                      value={form.barberId}
+                      onChange={(e) => setForm({ ...form, barberId: e.target.value })}
+                      disabled={busy}
+                    >
+                      <option value="">Select...</option>
+                      {barbers.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Select Service *</label>
+                    <select
+                      required
+                      value={form.serviceId}
+                      onChange={(e) => {
+                        const service = services.find((s) => s.id === Number(e.target.value));
+                        setForm({
+                          ...form,
+                          serviceId: e.target.value,
+                          amount: service?.price != null ? String(service.price) : form.amount,
+                          discountReason: "",
+                        });
+                      }}
+                      disabled={busy}
+                    >
+                      <option value="">Select...</option>
+                      {services
+                        .filter((s) => s.active !== false)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Amount (RWF) *</label>
+                    <input
+                      required
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={form.amount}
+                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                      disabled={busy}
+                    />
+                    {selectedService?.price != null ? (
+                      <small style={{ color: "var(--barbazza-cream)" }}>Base Price: {money(selectedService.price)}</small>
+                    ) : null}
+                  </div>
+                  <div className="form-group">
+                    <label>Customer Name (Optional)</label>
+                    <input
+                      value={form.customerName}
+                      onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                      disabled={busy}
+                    />
+                  </div>
+                  {needsDiscount ? (
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label>Discount Reason *</label>
+                      <textarea
+                        required
+                        rows={2}
+                        value={form.discountReason}
+                        onChange={(e) => setForm({ ...form, discountReason: e.target.value })}
+                        placeholder="Required when price is less than base price"
+                        disabled={busy}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                    <label>Notes (Optional)</label>
+                    <textarea
+                      rows={2}
+                      value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      disabled={busy}
+                    />
+                  </div>
+                </div>
+                <div className="action-modal-footer">
+                  <BusyButton type="button" variant="danger" onClick={closeTxForm} disabled={busy}>
+                    Cancel
+                  </BusyButton>
+                  <BusyButton type="submit" variant="primary" busy={busy}>
+                    {busy ? "Saving…" : editingTx ? "Save Transaction" : "Add Service"}
+                  </BusyButton>
+                </div>
+              </form>
+            </ActionModal>
+          ) : null}
         </>
       ) : null}
 

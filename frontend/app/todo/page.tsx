@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckSquare, Pin, Plus, Search, Trash2 } from "lucide-react";
+import { ActionModal } from "@/components/ActionModal";
+import { BusyButton } from "@/components/BusyButton";
 import { Kpi, Panel, Shell, useSession } from "@/components/Shell";
 import { api } from "@/lib/api";
 import { shopBusinessDate } from "@/lib/time";
@@ -61,6 +63,8 @@ export default function TodoPage() {
   const [dueDate, setDueDate] = useState("");
   const [newListId, setNewListId] = useState<number | "">("");
   const [listName, setListName] = useState("");
+  const [createTodoOpen, setCreateTodoOpen] = useState(false);
+  const [createListOpen, setCreateListOpen] = useState(false);
   const [editing, setEditing] = useState<Todo | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -118,6 +122,35 @@ export default function TodoPage() {
     }
   }
 
+  function openCreateTodo() {
+    setTitle("");
+    setNotes("");
+    setDueDate("");
+    setPriority("medium");
+    setNewListId(lists[0]?.id ?? "");
+    setCreateTodoOpen(true);
+  }
+
+  function closeCreateTodo() {
+    if (busy) return;
+    setCreateTodoOpen(false);
+  }
+
+  function openCreateList() {
+    setListName("");
+    setCreateListOpen(true);
+  }
+
+  function closeCreateList() {
+    if (busy) return;
+    setCreateListOpen(false);
+  }
+
+  function closeEdit() {
+    if (busy) return;
+    setEditing(null);
+  }
+
   async function addTodo(event: FormEvent) {
     event.preventDefault();
     if (!title.trim()) return;
@@ -135,10 +168,7 @@ export default function TodoPage() {
           listId: newListId === "" ? null : Number(newListId),
         }),
       });
-      setTitle("");
-      setNotes("");
-      setDueDate("");
-      setPriority("medium");
+      setCreateTodoOpen(false);
       setMessage("Todo added.");
       await load();
     } catch (err) {
@@ -193,16 +223,20 @@ export default function TodoPage() {
 
   async function removeTodo(id: number) {
     if (!window.confirm("Delete this todo?")) return;
+    setBusy(true);
     try {
       await api(`/api/todos/${id}`, { method: "DELETE" });
       setTodos((prev) => prev.filter((t) => t.id !== id));
       await refreshQuiet();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function togglePin(todo: Todo) {
+    setBusy(true);
     try {
       await api(`/api/todos/${todo.id}`, {
         method: "PUT",
@@ -211,6 +245,8 @@ export default function TodoPage() {
       await refreshQuiet();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not pin todo");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -234,6 +270,7 @@ export default function TodoPage() {
     setBusy(true);
     try {
       await api("/api/todo-lists", { method: "POST", body: JSON.stringify({ name: listName.trim() }) });
+      setCreateListOpen(false);
       setListName("");
       await load();
     } catch (err) {
@@ -245,12 +282,15 @@ export default function TodoPage() {
 
   async function deleteList(id: number) {
     if (!window.confirm("Delete this list? Todos stay, but become unlisted.")) return;
+    setBusy(true);
     try {
       await api(`/api/todo-lists/${id}`, { method: "DELETE" });
       if (listId === id) setListId("all");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete list");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -274,66 +314,16 @@ export default function TodoPage() {
         <Kpi label="Done" value={String(stats.done)} />
       </div>
 
-      <Panel title="Todo" className="admin-card">
-        <p style={{ marginBottom: "var(--space-4)", color: "var(--barbazza-cream)" }}>
-          Capture shop follow-ups, ops chores, and personal admin tasks. Pin what matters, set due dates, and clear
-          completed when you are done.
-        </p>
-
-        <form onSubmit={addTodo} className="todo-composer">
-          <div className="form-grid form-grid-2">
-            <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-              <label>Quick add</label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="What needs doing?"
-                autoComplete="off"
-              />
-            </div>
-            <div className="form-group">
-              <label>List</label>
-              <select value={newListId} onChange={(e) => setNewListId(e.target.value ? Number(e.target.value) : "")}>
-                <option value="">No list</option>
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                {PRIORITIES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Due date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label>Notes</label>
-              <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional details" />
-            </div>
-          </div>
-          <button
-            type="submit"
-            className={`btn-primary${busy ? " btn-processing" : ""}`}
-            disabled={busy || !title.trim()}
-          >
-            <Plus size={16} style={{ marginRight: 6, verticalAlign: "middle" }} />
-            {busy ? "Adding…" : "Add todo"}
-          </button>
-        </form>
-      </Panel>
-
       <div className="todo-layout">
-        <Panel title="Lists" className="admin-card todo-side">
+        <Panel
+          title="Lists"
+          className="admin-card todo-side"
+          actions={
+            <BusyButton variant="primary" onClick={openCreateList} busy={busy && !createListOpen}>
+              Add List
+            </BusyButton>
+          }
+        >
           <div className="todo-filters">
             {(
               [
@@ -374,25 +364,29 @@ export default function TodoPage() {
                 {list.name}
                 <span className="todo-list-count">{list.openCount}</span>
               </button>
-              <button type="button" className="btn-action-delete" onClick={() => deleteList(list.id)} title="Delete list">
+              <button
+                type="button"
+                className="btn-action-delete"
+                onClick={() => deleteList(list.id)}
+                disabled={busy}
+                title="Delete list"
+              >
                 <Trash2 size={14} />
               </button>
             </div>
           ))}
-
-          <form onSubmit={addList} className="todo-list-add">
-            <input value={listName} onChange={(e) => setListName(e.target.value)} placeholder="New list name" />
-            <button
-              type="submit"
-              className={`btn-primary${busy ? " btn-processing" : ""}`}
-              disabled={busy || !listName.trim()}
-            >
-              Add list
-            </button>
-          </form>
         </Panel>
 
-        <Panel title="Tasks" className="admin-card todo-main">
+        <Panel
+          title="Tasks"
+          className="admin-card todo-main"
+          actions={
+            <BusyButton variant="primary" onClick={openCreateTodo} busy={busy && !createTodoOpen}>
+              <Plus size={16} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              Add Todo
+            </BusyButton>
+          }
+        >
           <div className="todo-toolbar">
             <div className="todo-search">
               <Search size={16} />
@@ -413,13 +407,13 @@ export default function TodoPage() {
                 </option>
               ))}
             </select>
-            <button type="button" className="btn-logout" onClick={clearCompleted} disabled={busy}>
+            <BusyButton type="button" variant="danger" onClick={clearCompleted} busy={busy}>
               Clear completed
-            </button>
+            </BusyButton>
           </div>
 
           {visible.length === 0 ? (
-            <p style={{ color: "var(--barbazza-stone)" }}>No todos here yet. Add one above.</p>
+            <p style={{ color: "var(--barbazza-stone)" }}>No todos here yet.</p>
           ) : (
             <ul className="todo-list">
               {visible.map((todo) => {
@@ -457,15 +451,29 @@ export default function TodoPage() {
                         {open && todo.notes ? <p className="todo-notes">{todo.notes}</p> : null}
                       </div>
                       <div className="todo-actions">
-                        <button type="button" className="btn-action-edit" onClick={() => togglePin(todo)}>
+                        <BusyButton
+                          type="button"
+                          variant="action"
+                          className="btn-action-edit"
+                          onClick={() => togglePin(todo)}
+                          busy={busy}
+                          disabled={busy}
+                        >
                           {todo.pinned ? "Unpin" : "Pin"}
-                        </button>
+                        </BusyButton>
                         <button type="button" className="btn-action-edit" onClick={() => setEditing({ ...todo })}>
                           Edit
                         </button>
-                        <button type="button" className="btn-action-delete" onClick={() => removeTodo(todo.id)}>
+                        <BusyButton
+                          type="button"
+                          variant="danger"
+                          className="btn-action-delete"
+                          onClick={() => removeTodo(todo.id)}
+                          busy={busy}
+                          disabled={busy}
+                        >
                           Delete
-                        </button>
+                        </BusyButton>
                       </div>
                     </div>
                   </li>
@@ -476,13 +484,108 @@ export default function TodoPage() {
         </Panel>
       </div>
 
+      {createTodoOpen ? (
+        <ActionModal title="Add Todo" onClose={closeCreateTodo} busy={busy}>
+          <form onSubmit={addTodo}>
+            <div className="form-grid form-grid-2">
+              <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                <label>Title</label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="What needs doing?"
+                  autoComplete="off"
+                  disabled={busy}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>List</label>
+                <select
+                  value={newListId}
+                  onChange={(e) => setNewListId(e.target.value ? Number(e.target.value) : "")}
+                  disabled={busy}
+                >
+                  <option value="">No list</option>
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Priority</label>
+                <select value={priority} onChange={(e) => setPriority(e.target.value)} disabled={busy}>
+                  {PRIORITIES.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Due date</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={busy} />
+              </div>
+              <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                <label>Notes</label>
+                <input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Optional details"
+                  disabled={busy}
+                />
+              </div>
+            </div>
+            <div className="action-modal-footer">
+              <BusyButton type="button" variant="danger" onClick={closeCreateTodo} disabled={busy}>
+                Cancel
+              </BusyButton>
+              <BusyButton type="submit" variant="primary" busy={busy} disabled={!title.trim()}>
+                {busy ? "Adding…" : "Add todo"}
+              </BusyButton>
+            </div>
+          </form>
+        </ActionModal>
+      ) : null}
+
+      {createListOpen ? (
+        <ActionModal title="Add List" onClose={closeCreateList} busy={busy}>
+          <form onSubmit={addList}>
+            <div className="form-group">
+              <label>List name</label>
+              <input
+                value={listName}
+                onChange={(e) => setListName(e.target.value)}
+                placeholder="New list name"
+                autoComplete="off"
+                disabled={busy}
+                required
+              />
+            </div>
+            <div className="action-modal-footer">
+              <BusyButton type="button" variant="danger" onClick={closeCreateList} disabled={busy}>
+                Cancel
+              </BusyButton>
+              <BusyButton type="submit" variant="primary" busy={busy} disabled={!listName.trim()}>
+                {busy ? "Adding…" : "Add list"}
+              </BusyButton>
+            </div>
+          </form>
+        </ActionModal>
+      ) : null}
+
       {editing ? (
-        <div className="todo-modal-backdrop" onClick={() => setEditing(null)}>
-          <form className="todo-modal admin-card" onClick={(e) => e.stopPropagation()} onSubmit={saveEdit}>
-            <h3>Edit todo</h3>
+        <ActionModal title="Edit todo" onClose={closeEdit} busy={busy} wide>
+          <form onSubmit={saveEdit}>
             <div className="form-group">
               <label>Title</label>
-              <input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+              <input
+                value={editing.title}
+                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                disabled={busy}
+              />
             </div>
             <div className="form-group">
               <label>Notes</label>
@@ -490,6 +593,7 @@ export default function TodoPage() {
                 rows={4}
                 value={editing.notes}
                 onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+                disabled={busy}
               />
             </div>
             <div className="form-grid form-grid-2">
@@ -500,6 +604,7 @@ export default function TodoPage() {
                   onChange={(e) =>
                     setEditing({ ...editing, listId: e.target.value ? Number(e.target.value) : null })
                   }
+                  disabled={busy}
                 >
                   <option value="">No list</option>
                   {lists.map((list) => (
@@ -514,6 +619,7 @@ export default function TodoPage() {
                 <select
                   value={editing.priority}
                   onChange={(e) => setEditing({ ...editing, priority: e.target.value })}
+                  disabled={busy}
                 >
                   {PRIORITIES.map((p) => (
                     <option key={p.value} value={p.value}>
@@ -527,6 +633,7 @@ export default function TodoPage() {
                 <select
                   value={editing.status}
                   onChange={(e) => setEditing({ ...editing, status: e.target.value })}
+                  disabled={busy}
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In progress</option>
@@ -539,6 +646,7 @@ export default function TodoPage() {
                   type="date"
                   value={editing.dueDate || ""}
                   onChange={(e) => setEditing({ ...editing, dueDate: e.target.value || null })}
+                  disabled={busy}
                 />
               </div>
             </div>
@@ -547,23 +655,20 @@ export default function TodoPage() {
                 type="checkbox"
                 checked={editing.pinned}
                 onChange={(e) => setEditing({ ...editing, pinned: e.target.checked })}
+                disabled={busy}
               />
               Pinned
             </label>
-            <div className="todo-modal-actions">
-              <button type="button" className="btn-logout" onClick={() => setEditing(null)}>
+            <div className="action-modal-footer">
+              <BusyButton type="button" variant="danger" onClick={closeEdit} disabled={busy}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className={`btn-primary${busy ? " btn-processing" : ""}`}
-                disabled={busy || !editing.title.trim()}
-              >
-                Save
-              </button>
+              </BusyButton>
+              <BusyButton type="submit" variant="primary" busy={busy} disabled={!editing.title.trim()}>
+                {busy ? "Saving…" : "Save"}
+              </BusyButton>
             </div>
           </form>
-        </div>
+        </ActionModal>
       ) : null}
     </Shell>
   );
