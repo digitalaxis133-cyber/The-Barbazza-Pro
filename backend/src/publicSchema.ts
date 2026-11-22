@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { SHOP_DEFAULTS } from "./shop";
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /** Ensure public booking / ratings / profile tables exist (safe to run on every boot). */
 export async function ensurePublicSchema() {
@@ -122,7 +122,49 @@ export async function ensurePublicSchema() {
       CREATE INDEX IF NOT EXISTS idx_users_username_active
         ON users (username)
         WHERE is_active = TRUE;
+
+      CREATE TABLE IF NOT EXISTS admin_todo_lists (
+        list_id SERIAL PRIMARY KEY,
+        name VARCHAR(80) NOT NULL,
+        color VARCHAR(20) NOT NULL DEFAULT '#0a0a0a',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER REFERENCES users(user_id),
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS admin_todos (
+        todo_id SERIAL PRIMARY KEY,
+        list_id INTEGER REFERENCES admin_todo_lists(list_id) ON DELETE SET NULL,
+        title VARCHAR(240) NOT NULL,
+        notes TEXT,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+        due_date DATE,
+        pinned BOOLEAN NOT NULL DEFAULT FALSE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER REFERENCES users(user_id),
+        completed_by INTEGER REFERENCES users(user_id),
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_admin_todos_status_due
+        ON admin_todos (status, due_date, sort_order);
+
+      CREATE INDEX IF NOT EXISTS idx_admin_todos_list
+        ON admin_todos (list_id, status);
     `);
+
+    const listCount = await client.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM admin_todo_lists`);
+    if (Number(listCount.rows[0]?.count || 0) === 0) {
+      await client.query(
+        `INSERT INTO admin_todo_lists (name, color, sort_order)
+         VALUES ('General', '#0a0a0a', 1),
+                ('Shop ops', '#2a2a2a', 2),
+                ('Marketing', '#6a6a6a', 3)`
+      );
+    }
 
     // Allow cleaner role on users.role check constraint.
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
