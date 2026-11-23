@@ -182,8 +182,27 @@ async function handleInbound(req: {
 
   const q = req.query as Record<string, unknown>;
   const sender =
-    pickString(nested, ["from", "sender", "phone", "number", "address", "originatingAddress"]) ||
-    pickString(q, ["from", "sender", "phone", "number", "address"]);
+    pickString(nested, [
+      "from",
+      "sender",
+      "phone",
+      "number",
+      "address",
+      "originatingAddress",
+      "in-number",
+      "in_number",
+      "inNumber",
+    ]) ||
+    pickString(q, [
+      "from",
+      "sender",
+      "phone",
+      "number",
+      "address",
+      "in-number",
+      "in_number",
+      "inNumber",
+    ]);
   const text =
     pickString(nested, ["text", "message", "body", "content", "sms", "msg"]) ||
     pickString(q, ["text", "message", "body", "content", "sms", "msg"]);
