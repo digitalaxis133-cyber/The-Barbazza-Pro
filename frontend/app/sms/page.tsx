@@ -199,9 +199,9 @@ export default function SmsInboxPage() {
                 Or append <code>?token=YOUR_SMS_INBOUND_TOKEN</code> to the URL if the app has no custom headers.
               </li>
               <li>
-                Body format (JSON POST): <code>{`{ "from": "+2507…", "text": "full SMS body" }`}</code>
-                <br />
-                Most forwarders map “sender → from” and “message → text” automatically.
+                Method: <code>POST</code> or <code>GET</code> (both work). JSON body{" "}
+                <code>{`{ "from": "+2507…", "text": "…" }`}</code>, or query{" "}
+                <code>?from=…&amp;text=…&amp;token=…</code>. Most apps map sender → from and message → text.
               </li>
               <li>
                 Keep the phone on Wi‑Fi/data, disable battery optimization for the forwarder, and send yourself a test

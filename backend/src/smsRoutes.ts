@@ -113,8 +113,16 @@ function authorizeInbound(req: { headers: Record<string, unknown>; query: Record
   return true;
 }
 
-/** Public webhook for Android SMS forwarder apps */
-smsRoutes.post("/sms/inbound", async (req, res) => {
+/** Shared handler — many Android forwarders use GET with query params, others POST JSON/form */
+async function handleInbound(req: {
+  method?: string;
+  headers: Record<string, unknown>;
+  query: Record<string, unknown>;
+  body?: unknown;
+}, res: {
+  status: (code: number) => { json: (body: unknown) => void };
+  json: (body: unknown) => void;
+}) {
   if (!authorizeInbound(req, res)) return;
 
   const bodyObj =
@@ -130,20 +138,33 @@ smsRoutes.post("/sms/inbound", async (req, res) => {
         ? (bodyObj.sms as Record<string, unknown>)
         : bodyObj;
 
+  const q = req.query as Record<string, unknown>;
   const sender =
     pickString(nested, ["from", "sender", "phone", "number", "address", "originatingAddress"]) ||
-    pickString(req.query as Record<string, unknown>, ["from", "sender", "phone"]);
+    pickString(q, ["from", "sender", "phone", "number", "address"]);
   const text =
     pickString(nested, ["text", "message", "body", "content", "sms", "msg"]) ||
-    pickString(req.query as Record<string, unknown>, ["text", "message", "body"]);
+    pickString(q, ["text", "message", "body", "content", "sms", "msg"]);
   const receivedRaw =
     pickString(nested, ["receivedAt", "received_at", "timestamp", "date", "sentStamp", "receivedStamp", "time"]) ||
-    pickString(req.query as Record<string, unknown>, ["receivedAt", "timestamp", "date"]);
+    pickString(q, ["receivedAt", "timestamp", "date", "time"]);
+
+  // Connectivity check from apps that GET the webhook URL with only ?token=…
+  if (!sender && !text) {
+    res.json({
+      ok: true,
+      service: "barbazza-sms-inbound",
+      method: String(req.method || "").toUpperCase() || "GET",
+      hint: "Webhook ready. Forward SMS with from/sender + text/message (query or JSON body).",
+      time: new Date().toISOString(),
+    });
+    return;
+  }
 
   if (!sender || !text) {
     res.status(400).json({
       error: "sender and text are required",
-      hint: "Send JSON like { from, text } or { sender, message }",
+      hint: "Send JSON like { from, text } or GET ?from=…&text=…&token=…",
     });
     return;
   }
@@ -165,13 +186,21 @@ smsRoutes.post("/sms/inbound", async (req, res) => {
         meta.amount,
         meta.currency,
         meta.direction,
-        JSON.stringify(req.body ?? {}),
+        JSON.stringify({ method: req.method, query: req.query, body: req.body ?? null }),
       ]
     );
     res.json({ ok: true, id: Number(rows[0]?.sms_id) });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Could not save SMS" });
   }
+}
+
+/** Public webhook for Android SMS forwarder apps (POST and GET) */
+smsRoutes.post("/sms/inbound", (req, res) => {
+  void handleInbound(req, res);
+});
+smsRoutes.get("/sms/inbound", (req, res) => {
+  void handleInbound(req, res);
 });
 
 /** Lightweight ping so the phone setup can verify the token */
