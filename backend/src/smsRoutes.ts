@@ -23,15 +23,47 @@ function inboundToken() {
   return (process.env.SMS_INBOUND_TOKEN || "").trim();
 }
 
+function headerValue(headers: Record<string, unknown>, name: string) {
+  const raw = headers[name.toLowerCase()];
+  if (Array.isArray(raw)) return String(raw[0] || "").trim();
+  return String(raw || "").trim();
+}
+
 function extractToken(req: { headers: Record<string, unknown>; query: Record<string, unknown>; body?: unknown }) {
-  const header = String(req.headers["x-sms-token"] || "").trim();
-  if (header) return header;
-  const auth = String(req.headers.authorization || "");
-  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
-  const q = String(req.query.token || "").trim();
-  if (q) return q;
-  if (req.body && typeof req.body === "object" && req.body !== null && "token" in req.body) {
-    return String((req.body as { token?: string }).token || "").trim();
+  const headerNames = [
+    "x-sms-token",
+    "x-api-key",
+    "api-key",
+    "x-auth-token",
+    "token",
+    "sms-token",
+  ];
+  for (const name of headerNames) {
+    const value = headerValue(req.headers, name);
+    if (value) return value;
+  }
+
+  const auth = headerValue(req.headers, "authorization");
+  if (auth) {
+    const lower = auth.toLowerCase();
+    if (lower.startsWith("bearer ")) return auth.slice(7).trim();
+    if (lower.startsWith("token ")) return auth.slice(6).trim();
+    // Some forwarders put the raw secret in Authorization with no scheme
+    if (!lower.includes(" ")) return auth;
+  }
+
+  const qKeys = ["token", "key", "api_key", "apikey", "secret", "sms_token"];
+  for (const key of qKeys) {
+    const value = pickString(req.query, [key]);
+    if (value) return value;
+  }
+
+  if (req.body && typeof req.body === "object" && req.body !== null && !Array.isArray(req.body)) {
+    const body = req.body as Record<string, unknown>;
+    for (const key of qKeys) {
+      const value = pickString(body, [key]);
+      if (value) return value;
+    }
   }
   return "";
 }
@@ -106,8 +138,18 @@ function authorizeInbound(req: { headers: Record<string, unknown>; query: Record
     return false;
   }
   const got = extractToken(req);
-  if (!got || got !== expected) {
-    res.status(401).json({ error: "Invalid SMS token" });
+  if (!got) {
+    res.status(401).json({
+      error: "Missing SMS token",
+      hint: "Put the full webhook URL with ?token=YOUR_SMS_INBOUND_TOKEN (or send X-SMS-Token / Authorization: Bearer …).",
+    });
+    return false;
+  }
+  if (got !== expected) {
+    res.status(401).json({
+      error: "Invalid SMS token",
+      hint: "Token does not match SMS_INBOUND_TOKEN on Render. Re-copy the secret into the URL or header.",
+    });
     return false;
   }
   return true;

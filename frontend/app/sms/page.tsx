@@ -178,7 +178,8 @@ export default function SmsInboxPage() {
                 <strong>SMS Forwarder</strong> or <strong>SMS to URL Forwarder</strong> (Play Store / sideload).
               </li>
               <li>
-                Create a rule: forward SMS (all, or only MTN / Airtel) to this URL:
+                Create a rule: forward SMS (all, or only MTN / Airtel). Prefer this full URL (token included — no
+                custom header needed):
                 <div
                   style={{
                     marginTop: 8,
@@ -190,13 +191,14 @@ export default function SmsInboxPage() {
                     fontSize: "0.8rem",
                   }}
                 >
-                  {webhookUrl}
+                  {webhookUrl}?token=YOUR_SMS_INBOUND_TOKEN
                 </div>
+                Base URL only: <code style={{ wordBreak: "break-all" }}>{webhookUrl}</code>
               </li>
               <li>
-                Auth header: <code>X-SMS-Token: YOUR_SMS_INBOUND_TOKEN</code>
-                <br />
-                Or append <code>?token=YOUR_SMS_INBOUND_TOKEN</code> to the URL if the app has no custom headers.
+                If the app has a Headers box instead:{" "}
+                <code>Authorization: Bearer YOUR_SMS_INBOUND_TOKEN</code> or{" "}
+                <code>X-SMS-Token: YOUR_SMS_INBOUND_TOKEN</code>
               </li>
               <li>
                 Method: <code>POST</code> or <code>GET</code> (both work). JSON body{" "}
