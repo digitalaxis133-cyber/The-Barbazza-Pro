@@ -11,6 +11,7 @@ import { UPLOAD_DIR, ensureUploadDir } from "./uploads";
 import { buildEmploymentContract, contractFilename, ContractInput } from "./contracts";
 import { applyShopTimezone, BUSINESS_DATE_SQL, businessDate, DAY_CLOSE_HOUR, SHOP_TIMEZONE } from "./time";
 import { todoRoutes } from "./todoRoutes";
+import { smsRoutes } from "./smsRoutes";
 
 applyShopTimezone();
 
@@ -42,11 +43,13 @@ app.use(
   })
 );
 app.use(express.json({ limit: "8mb" }));
+app.use(express.urlencoded({ extended: true }));
 ensureUploadDir();
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/api/public", publicApi);
 app.use("/api", profileRoutes);
 app.use("/api", todoRoutes);
+app.use("/api", smsRoutes);
 
 /** Mark short-lived API GETs as privately cacheable on the client */
 function fastGetHeaders(res: import("express").Response, seconds = 10) {

@@ -24,3 +24,5 @@ services:
         value: https://thebarbazza.com,https://www.thebarbazza.com
       - key: PUBLIC_API_URL
         value: https://api.thebarbazza.com
+      - key: SMS_INBOUND_TOKEN
+        sync: false

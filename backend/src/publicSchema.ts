@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { SHOP_DEFAULTS } from "./shop";
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 /** Ensure public booking / ratings / profile tables exist (safe to run on every boot). */
 export async function ensurePublicSchema() {
@@ -154,6 +154,26 @@ export async function ensurePublicSchema() {
 
       CREATE INDEX IF NOT EXISTS idx_admin_todos_list
         ON admin_todos (list_id, status);
+
+      CREATE TABLE IF NOT EXISTS business_sms_messages (
+        sms_id SERIAL PRIMARY KEY,
+        sender VARCHAR(80) NOT NULL,
+        body TEXT NOT NULL,
+        received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        provider VARCHAR(40) NOT NULL DEFAULT 'other',
+        amount NUMERIC(14,2),
+        currency VARCHAR(8),
+        direction VARCHAR(16) NOT NULL DEFAULT 'unknown',
+        is_read BOOLEAN NOT NULL DEFAULT FALSE,
+        raw_payload JSONB,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_business_sms_received
+        ON business_sms_messages (received_at DESC, sms_id DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_business_sms_unread
+        ON business_sms_messages (is_read, received_at DESC);
     `);
 
     const listCount = await client.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM admin_todo_lists`);
